@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
 import { updateSettings, useIde } from '../store/ide'
+import { AiSettingsSection } from './AiSettings'
 import { commands } from '../lib/commands'
 import { formatKeybinding } from '../lib/keybindings'
 
@@ -53,7 +54,8 @@ const SECTIONS: Array<{ id: Section; label: string }> = [
 
 export function SettingsPage() {
   const s = useIde((st) => st.settings)
-  const [section, setSection] = useState<Section>('general')
+  const section = useIde((st) => st.settingsSection) as Section
+  const setSection = (id: Section) => useIde.setState({ settingsSection: id })
   const [filter, setFilter] = useState('')
   const set = (partial: Partial<Settings>) => updateSettings(partial)
 
@@ -159,18 +161,7 @@ export function SettingsPage() {
           </>
         )}
 
-        {section === 'ai' && (
-          <>
-            <h2>Modèles et clés API</h2>
-            <div className="callout">
-              <p>
-                Bientôt disponible : ajoutez ici vos propres clés (Anthropic, OpenAI, Google Gemini, Mistral, DeepSeek,
-                OpenRouter, Groq…) ou connectez des modèles locaux (Ollama, LM Studio).
-              </p>
-              <p className="muted">Les clés seront chiffrées par le trousseau du système et ne quitteront jamais votre machine, sauf vers le fournisseur concerné.</p>
-            </div>
-          </>
-        )}
+        {section === 'ai' && <AiSettingsSection />}
 
         {section === 'shortcuts' && (
           <>

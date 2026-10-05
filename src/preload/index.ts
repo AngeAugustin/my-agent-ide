@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import type { ChatEvent } from '@shared/ai'
 import type { FsChangeEvent, IdeApi } from '@shared/types'
 
 function on<T extends unknown[]>(channel: string, cb: (...args: T) => void): () => void {
@@ -42,6 +43,18 @@ const api: IdeApi = {
     kill: (id) => ipcRenderer.send('terminal:kill', id),
     onData: (cb) => on<[number, string]>('terminal:data', cb),
     onExit: (cb) => on<[number, number]>('terminal:exit', cb)
+  },
+  ai: {
+    providers: () => ipcRenderer.invoke('ai:providers'),
+    setKey: (providerId, key) => ipcRenderer.invoke('ai:setKey', providerId, key),
+    deleteKey: (providerId) => ipcRenderer.invoke('ai:deleteKey', providerId),
+    test: (providerId) => ipcRenderer.invoke('ai:test', providerId),
+    models: (providerId, refresh) => ipcRenderer.invoke('ai:models', providerId, refresh),
+    usage: () => ipcRenderer.invoke('ai:usage'),
+    resetUsage: () => ipcRenderer.invoke('ai:resetUsage'),
+    chat: (requestId, request) => ipcRenderer.invoke('ai:chat', requestId, request),
+    abort: (requestId) => ipcRenderer.send('ai:abort', requestId),
+    onEvent: (cb) => on<[string, ChatEvent]>('ai:event', cb)
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),

@@ -11,7 +11,7 @@ import { basename, dirname, isInside, join } from '../lib/paths'
 
 export type TabKind = 'file' | 'untitled' | 'settings'
 export type SidebarView = 'explorer' | 'search'
-export type PaletteMode = 'files' | 'commands' | 'line'
+export type PaletteMode = 'files' | 'commands' | 'line' | 'models'
 
 export interface Tab {
   id: string
@@ -92,6 +92,7 @@ interface IdeState {
   dialog: DialogRequest | null
   toasts: Toast[]
   searchFocusNonce: number
+  settingsSection: string
 }
 
 const initialState: IdeState = {
@@ -116,7 +117,8 @@ const initialState: IdeState = {
   palette: { open: false, mode: 'files', initial: '', nonce: 0 },
   dialog: null,
   toasts: [],
-  searchFocusNonce: 0
+  searchFocusNonce: 0,
+  settingsSection: 'general'
 }
 
 export const SETTINGS_TAB = 'ide://settings'
@@ -174,7 +176,10 @@ export function ask(title: string, message: string | undefined, buttons: DialogB
 
 export async function initialize(): Promise<void> {
   const [settings, session] = await Promise.all([window.api.settings.get(), window.api.session.get()])
-  set({ settings: { ...DEFAULT_SETTINGS, ...settings }, recentWorkspaces: session.recentWorkspaces ?? [] })
+  set({
+    settings: { ...DEFAULT_SETTINGS, ...settings, ai: { ...DEFAULT_SETTINGS.ai, ...settings.ai } },
+    recentWorkspaces: session.recentWorkspaces ?? []
+  })
 
   if (session.workspace && (await window.api.fs.exists(session.workspace))) {
     await openWorkspace(session.workspace, { restore: false })
@@ -215,14 +220,14 @@ useIde.subscribe((state, prev) => {
 // Paramètres
 // ---------------------------------------------------------------------------
 
-export function updateSettings(partial: Partial<Settings>): void {
+export function updateSettings(partial: Partial<Settings>): Promise<void> {
   const settings = { ...get().settings, ...partial }
   set({ settings })
-  void window.api.settings.set(settings)
+  return window.api.settings.set(settings)
 }
 
 export function toggleTheme(): void {
-  updateSettings({ theme: get().settings.theme === 'dark' ? 'light' : 'dark' })
+  void updateSettings({ theme: get().settings.theme === 'dark' ? 'light' : 'dark' })
 }
 
 // ---------------------------------------------------------------------------
@@ -415,7 +420,8 @@ export function newUntitled(): void {
   set((s) => ({ tabs: [...s.tabs, tab], activeId: id }))
 }
 
-export function openSettings(): void {
+export function openSettings(section?: string): void {
+  if (section) set({ settingsSection: section })
   const { tabs } = get()
   if (!tabs.some((t) => t.id === SETTINGS_TAB)) {
     set({ tabs: [...tabs, { id: SETTINGS_TAB, kind: 'settings', title: 'Paramètres', dirty: false, preview: false }] })

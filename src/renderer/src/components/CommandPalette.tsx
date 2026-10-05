@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { closePalette, getFileIndex, openFile, revealLine, useIde, type PaletteMode } from '../store/ide'
+import { closePalette, getFileIndex, openFile, openSettings, revealLine, useIde, type PaletteMode } from '../store/ide'
+import { readyProviders, setModelForRole } from '../store/ai'
 import { commands } from '../lib/commands'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { formatKeybinding } from '../lib/keybindings'
@@ -63,6 +64,22 @@ function initialValue(mode: PaletteMode, initial: string): string {
   return prefix && initial.startsWith(prefix) ? initial : prefix + initial
 }
 
+function modelItems(query: string): Item[] {
+  const current = useIde.getState().settings.ai.models.chat
+  const all: Item[] = readyProviders().flatMap((p) =>
+    p.models.map((m) => ({
+      key: `${p.id}::${m.id}`,
+      label: m.name && m.name !== m.id ? `${m.name} (${m.id})` : m.id,
+      description: p.name + (current?.providerId === p.id && current.modelId === m.id ? ' · actuel' : ''),
+      icon: { icon: 'sparkle' },
+      run: () => setModelForRole('chat', { providerId: p.id, modelId: m.id })
+    }))
+  )
+  const configure: Item = { key: 'configure', label: 'Configurer les fournisseurs et les clés API…', icon: { icon: 'settings-gear' }, run: () => openSettings('ai') }
+  if (!query) return [...all, configure]
+  return [...fuzzyFilter(query, all, (i) => `${i.label} ${i.description}`).map(({ item }) => item), configure]
+}
+
 function PaletteBody({ mode: initialMode, initial }: { mode: PaletteMode; initial: string }) {
   const workspace = useIde((s) => s.workspace)
   const tabs = useIde((s) => s.tabs)
@@ -71,14 +88,16 @@ function PaletteBody({ mode: initialMode, initial }: { mode: PaletteMode; initia
   const [files, setFiles] = useState<string[]>([])
   const listRef = useRef<HTMLDivElement>(null)
 
-  const mode = value.startsWith('>') ? 'commands' : value.startsWith(':') ? 'line' : 'files'
-  const query = mode === 'files' ? value : value.slice(1).trim()
+  const mode: PaletteMode =
+    initialMode === 'models' ? 'models' : value.startsWith('>') ? 'commands' : value.startsWith(':') ? 'line' : 'files'
+  const query = mode === 'files' || mode === 'models' ? value.trim() : value.slice(1).trim()
 
   useEffect(() => {
     if (mode === 'files' && files.length === 0) void getFileIndex().then(setFiles)
   }, [mode, files.length])
 
   const items: Item[] = useMemo(() => {
+    if (mode === 'models') return modelItems(query)
     if (mode === 'commands') {
       const available = commands
         .filter((c) => !c.when || c.when())
@@ -149,7 +168,9 @@ function PaletteBody({ mode: initialMode, initial }: { mode: PaletteMode; initia
   }
 
   const placeholder =
-    mode === 'commands'
+    mode === 'models'
+      ? 'Choisissez le modèle de chat'
+      : mode === 'commands'
       ? 'Tapez le nom d’une commande'
       : mode === 'line'
         ? 'Numéro de ligne (ex. : 42 ou 42:10)'

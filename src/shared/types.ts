@@ -1,5 +1,17 @@
 // Types partagés entre le processus principal, le preload et l'interface.
 
+import {
+  DEFAULT_AI_SETTINGS,
+  type AiSettings,
+  type ChatEvent,
+  type ChatRequest,
+  type KeyStorageInfo,
+  type ModelInfo,
+  type ProviderStatus,
+  type ProviderTestResult,
+  type UsageEntry
+} from './ai'
+
 export interface FileEntry {
   name: string
   path: string
@@ -50,6 +62,7 @@ export interface Settings {
   terminalFontSize: number
   terminalShell: string
   excludedFolders: string[]
+  ai: AiSettings
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -66,7 +79,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autoSaveDelay: 1000,
   terminalFontSize: 13,
   terminalShell: '',
-  excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__']
+  excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__'],
+  ai: DEFAULT_AI_SETTINGS
 }
 
 export interface SessionState {
@@ -124,6 +138,18 @@ export interface IdeApi {
     kill(id: number): void
     onData(cb: (id: number, data: string) => void): () => void
     onExit(cb: (id: number, code: number) => void): () => void
+  }
+  ai: {
+    providers(): Promise<{ providers: ProviderStatus[]; storage: KeyStorageInfo }>
+    setKey(providerId: string, key: string): Promise<void>
+    deleteKey(providerId: string): Promise<void>
+    test(providerId: string): Promise<ProviderTestResult>
+    models(providerId: string, refresh?: boolean): Promise<ModelInfo[]>
+    usage(): Promise<Record<string, UsageEntry>>
+    resetUsage(): Promise<void>
+    chat(requestId: string, request: ChatRequest): Promise<void>
+    abort(requestId: string): void
+    onEvent(cb: (requestId: string, event: ChatEvent) => void): () => void
   }
   settings: {
     get(): Promise<Settings>

@@ -6,6 +6,7 @@ import {
   type SessionState,
   type Settings
 } from '@shared/types'
+import { abortAllChats, registerAiHandlers } from './ai/ipc'
 import { registerFileHandlers, stopWatching } from './files'
 import { buildMenu } from './menu'
 import { JsonStore } from './store'
@@ -113,6 +114,7 @@ app.whenReady().then(() => {
   registerAppHandlers()
   registerFileHandlers(getContents, async () => (await settingsStore.get()).excludedFolders)
   registerTerminalHandlers(getContents, async () => (await settingsStore.get()).terminalShell)
+  registerAiHandlers(getContents, () => settingsStore.get())
   Menu.setApplicationMenu(buildMenu(getContents))
   createWindow()
 
@@ -122,6 +124,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  abortAllChats()
   killAllTerminals()
   stopWatching()
   if (process.platform !== 'darwin') app.quit()

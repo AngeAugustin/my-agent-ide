@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { openPalette, toggleTheme, useIde } from '../store/ide'
+import { modelLabel, useAi } from '../store/ai'
 import { monaco } from '../lib/monaco'
 import { basename } from '../lib/paths'
 import { runCommand } from '../lib/commands'
@@ -28,6 +29,8 @@ export function StatusBar() {
   const theme = useIde((s) => s.settings.theme)
   const hasEditor = useIde((s) => !!s.activeId && !s.activeId.startsWith('ide://'))
   const { errors, warnings } = useMarkerCounts()
+  const chatModel = useIde((s) => s.settings.ai.models.chat)
+  useAi((s) => s.providers) // rafraîchit le libellé quand la liste des modèles change
 
   return (
     <footer className="status-bar">
@@ -54,6 +57,13 @@ export function StatusBar() {
             </button>
           </>
         )}
+        <button
+          className="status-item"
+          title={chatModel ? `Modèle de chat : ${chatModel.modelId} — cliquer pour changer` : 'Configurer un modèle IA'}
+          onClick={() => openPalette('models')}
+        >
+          <Icon name="sparkle" /> {chatModel ? modelLabel(chatModel) : 'Configurer l’IA'}
+        </button>
         <button className="status-item" title="Basculer le thème" onClick={toggleTheme}>
           <Icon name={theme === 'dark' ? 'color-mode' : 'lightbulb'} />
         </button>

@@ -118,8 +118,10 @@ export const commands: Command[] = [
   { id: 'terminal.new', title: 'Nouveau terminal', category: 'Terminal', keybinding: 'Ctrl+Shift+[Backquote]', run: () => newTerminal() },
   { id: 'terminal.kill', title: 'Fermer le terminal actif', category: 'Terminal', run: () => killTerminal() },
 
-  { id: 'settings.open', title: 'Ouvrir les paramètres', category: 'Préférences', keybinding: 'Mod+,', run: openSettings },
-  { id: 'help.shortcuts', title: 'Raccourcis clavier', category: 'Aide', run: openSettings },
+  { id: 'settings.open', title: 'Ouvrir les paramètres', category: 'Préférences', keybinding: 'Mod+,', run: () => openSettings() },
+  { id: 'ai.configure', title: 'Configurer les modèles et les clés API', category: 'IA', run: () => openSettings('ai') },
+  { id: 'ai.selectChatModel', title: 'Choisir le modèle de chat…', category: 'IA', run: () => openPalette('models') },
+  { id: 'help.shortcuts', title: 'Raccourcis clavier', category: 'Aide', run: () => openSettings('shortcuts') },
   {
     id: 'help.about',
     title: 'À propos de My Agent IDE',

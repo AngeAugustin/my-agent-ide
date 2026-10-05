@@ -29,7 +29,7 @@ export function ActivityBar() {
         <Icon name="terminal" />
       </button>
       <div className="activity-spacer" />
-      <button className={`activity-item${settingsActive ? ' active' : ''}`} title="Paramètres (Ctrl+,)" aria-label="Paramètres" onClick={openSettings}>
+      <button className={`activity-item${settingsActive ? ' active' : ''}`} title="Paramètres (Ctrl+,)" aria-label="Paramètres" onClick={() => openSettings()}>
         <Icon name="settings-gear" />
       </button>
     </nav>

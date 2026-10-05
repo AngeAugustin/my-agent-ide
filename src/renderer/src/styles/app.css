@@ -1415,3 +1415,245 @@ button.status-item:hover {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* --- Modèles et clés API ------------------------------------------------------ */
+
+.ai-settings h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 28px 0 8px;
+}
+
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.callout.warning {
+  border-left-color: var(--warning);
+}
+
+.callout.warning > .codicon {
+  color: var(--warning);
+}
+
+.model-role {
+  align-items: flex-start;
+}
+
+.model-role-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 60%;
+}
+
+.model-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.model-picker > select {
+  width: 320px;
+  max-width: 100%;
+}
+
+.model-custom {
+  display: flex;
+  gap: 6px;
+}
+
+.model-custom input {
+  width: 200px;
+}
+
+.model-test {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  width: 320px;
+  max-width: 100%;
+}
+
+.model-test .btn,
+.provider-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-test-result {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  user-select: text;
+}
+
+.model-test-result.ok {
+  border-color: var(--success);
+}
+
+.model-test-result.error {
+  border-color: var(--danger);
+}
+
+.model-test-output {
+  white-space: pre-wrap;
+  margin-bottom: 4px;
+}
+
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.provider-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.provider-card.open {
+  border-color: var(--accent);
+}
+
+.provider-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.provider-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.provider-desc {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-badge {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--bg-active);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.status-badge.ok {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--success);
+}
+
+.masked-key {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.provider-body {
+  padding: 4px 16px 14px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.provider-row label {
+  font-weight: 600;
+}
+
+.provider-inline {
+  display: flex;
+  gap: 6px;
+}
+
+.provider-inline input {
+  flex: 1;
+  max-width: 420px;
+}
+
+.provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.provider-result {
+  padding: 6px 10px;
+  border-radius: 4px;
+  user-select: text;
+}
+
+.provider-result.ok {
+  background: rgba(63, 185, 80, 0.12);
+  color: var(--success);
+}
+
+.provider-result.error {
+  background: rgba(241, 76, 76, 0.12);
+  color: var(--danger);
+}
+
+.add-provider-wrap {
+  margin-top: 10px;
+}
+
+.add-provider {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-provider label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.add-provider label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-provider input:not([type='checkbox']) {
+  max-width: 420px;
+}
+
+.usage-table td,
+.usage-table th {
+  text-align: left;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

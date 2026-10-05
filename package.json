@@ -17,7 +17,9 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
-    "node-pty": "^1.1.0"
+    "@anthropic-ai/sdk": "^0.131.0",
+    "node-pty": "^1.1.0",
+    "openai": "^7.28.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
