@@ -204,15 +204,18 @@ export class NodeDebugBackend implements DebugBackend {
    * (ex. /var → /private/var sous macOS) doit être reconnu sous ses deux formes.
    */
   private urlRegexFor(path: string): string {
-    let real = path
-    try {
-      real = realpathSync.native(path)
-    } catch {
-      // fichier introuvable : chemin tel quel
+    // Node résout les liens avec sa propre version de realpath (qui garde, sous Windows, les noms
+    // courts comme RUNNER~1) ; la version native les développe : on accepte toutes les formes.
+    const forms = new Set([path])
+    for (const resolve of [realpathSync, realpathSync.native]) {
+      try {
+        forms.add(resolve(path))
+      } catch {
+        // fichier introuvable : chemin tel quel
+      }
     }
-    if (real === path) return nodeUrlRegex(path)
-    this.aliases.set(real, path)
-    return `(${nodeUrlRegex(path)})|(${nodeUrlRegex(real)})`
+    for (const form of forms) if (form !== path) this.aliases.set(form, path)
+    return [...forms].map((f) => `(${nodeUrlRegex(f)})`).join('|')
   }
 
   private async applyBreakpoints(path: string, bps: SourceBreakpoint[]): Promise<BreakpointResult[]> {

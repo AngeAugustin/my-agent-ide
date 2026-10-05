@@ -7,8 +7,12 @@ on:
 
 jobs:
   verifier:
-    name: Types, tests et compilation
-    runs-on: ubuntu-latest
+    name: Types, tests et compilation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
