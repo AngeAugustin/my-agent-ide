@@ -61,7 +61,9 @@ function useMentionOptions(query: string | null): MentionOption[] {
   return useMemo(() => {
     if (query === null) return []
     const rel = (p: string) => (workspace ? relative(workspace, p).split('\\').join('/') : p)
-    const special = SPECIAL.filter((s) => !query || fuzzyFilter(query, [s.words + ' ' + s.label], (x) => x).length > 0).map((s) => ({
+    // Entrées spéciales : la saisie doit être le début d'un de leurs mots-clés (une recherche floue serait trop large).
+    const q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const special = SPECIAL.filter((s) => !q || `${s.words} ${s.label.toLowerCase()}`.split(/\s+/).some((w) => w.startsWith(q))).map((s) => ({
       key: s.label,
       label: s.label,
       detail: s.detail,

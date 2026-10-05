@@ -27,6 +27,7 @@ function ToolRunView({ convId, run, turnId, stepId, index }: { convId: string; r
   const { icon, label } = describeTool(run.call)
   const st = STATUS_ICON[run.status]
   const isCommand = run.call.name === 'run_command'
+  const isMcp = run.call.name.startsWith('mcp__')
   const waiting = run.status === 'approval' && approval?.turnId === turnId && approval.stepId === stepId && approval.index === index
   const path = toolPath(run.call.name, run.call.input)
   const output = run.status === 'running' && run.live ? run.live : run.output
@@ -64,15 +65,26 @@ function ToolRunView({ convId, run, turnId, stepId, index }: { convId: string; r
       {waiting && (
         <div className="approval">
           <div className="approval-text">
-            <Icon name="shield" /> L’agent veut exécuter cette commande dans <code>{useIde.getState().workspace}</code> :
+            <Icon name="shield" />{' '}
+            {isMcp ? (
+              <>L’agent veut utiliser cet outil MCP :</>
+            ) : (
+              <>
+                L’agent veut exécuter cette commande dans <code>{useIde.getState().workspace}</code> :
+              </>
+            )}
           </div>
           <pre className="approval-command">{approval!.command}</pre>
           <div className="approval-actions">
             <button className="btn danger" onClick={() => answerApproval('deny')}>
               Refuser
             </button>
-            <button className="btn" title="Ajouter cette commande exacte à la liste des commandes autorisées" onClick={() => answerApproval('always')}>
-              Toujours autoriser
+            <button
+              className="btn"
+              title={isMcp ? 'Exécuter désormais les outils de ce serveur sans confirmation' : 'Ajouter cette commande exacte à la liste des commandes autorisées'}
+              onClick={() => answerApproval('always')}
+            >
+              {isMcp ? 'Toujours autoriser ce serveur' : 'Toujours autoriser'}
             </button>
             <button className="btn primary" onClick={() => answerApproval('run')} autoFocus>
               <Icon name="play" /> Exécuter

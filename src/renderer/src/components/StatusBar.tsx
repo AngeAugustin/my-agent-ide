@@ -3,6 +3,7 @@ import { openPalette, toggleTheme, useIde } from '../store/ide'
 import { modelLabel, useAi } from '../store/ai'
 import { toggleAutocomplete, useAutocomplete } from '../lib/autocomplete'
 import { indexSummary, useCodeIndex } from '../store/codeIndex'
+import { useLsp } from '../lib/lsp'
 import { openSettings } from '../store/ide'
 import { monaco } from '../lib/monaco'
 import { basename } from '../lib/paths'
@@ -38,6 +39,8 @@ export function StatusBar() {
   const autocompleteModel = useIde((s) => s.settings.ai.models.autocomplete)
   const { pending, lastError } = useAutocomplete()
   const index = useCodeIndex((s) => s.status)
+  const lspRunning = useLsp((s) => s.running)
+  const lspNames = useLsp((s) => s.servers)
   const indexBusy = index?.state === 'scanning' || index?.state === 'embedding'
   useAi((s) => s.providers) // rafraîchit le libellé quand la liste des modèles change
 
@@ -100,6 +103,21 @@ export function StatusBar() {
         >
           <Icon name="sparkle" /> {chatModel ? modelLabel(chatModel) : 'Configurer l’IA'}
         </button>
+        {Object.keys(lspRunning).length > 0 && (
+          <button
+            className={`status-item${Object.values(lspRunning).includes('error') ? ' status-warning' : ''}`}
+            title={`Serveurs de langage : ${Object.entries(lspRunning)
+              .map(([id, st]) => `${lspNames.find((n) => n.id === id)?.name ?? id} (${st === 'running' ? 'actif' : st === 'starting' ? 'démarrage' : 'erreur'})`)
+              .join(', ')}`}
+            onClick={() => openSettings('lsp')}
+          >
+            <Icon
+              name={Object.values(lspRunning).includes('starting') ? 'loading' : 'symbol-namespace'}
+              className={Object.values(lspRunning).includes('starting') ? 'codicon-modifier-spin' : undefined}
+            />{' '}
+            LSP
+          </button>
+        )}
         <button className="status-item" title="Basculer le thème" onClick={toggleTheme}>
           <Icon name={theme === 'dark' ? 'color-mode' : 'lightbulb'} />
         </button>

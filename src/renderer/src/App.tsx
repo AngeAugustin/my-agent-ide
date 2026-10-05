@@ -9,6 +9,9 @@ import {
 } from './store/ide'
 import { loadAi } from './store/ai'
 import { initCodeIndex } from './store/codeIndex'
+import { initGit } from './store/git'
+import { initMcp } from './store/mcp'
+import { initLsp } from './lib/lsp'
 import { commands, runCommand } from './lib/commands'
 import { onDirtyChange } from './lib/editorModels'
 import { matchesKeybinding } from './lib/keybindings'
@@ -72,6 +75,9 @@ export function App() {
     void initialize()
       .then(() => {
         initCodeIndex()
+        initGit()
+        initMcp()
+        initLsp()
         return loadAi()
       })
       .catch(() => undefined)

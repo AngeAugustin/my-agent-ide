@@ -10,7 +10,7 @@ import * as models from '../lib/editorModels'
 import { basename, dirname, isInside, join } from '../lib/paths'
 
 export type TabKind = 'file' | 'untitled' | 'settings' | 'diff'
-export type SidebarView = 'explorer' | 'search'
+export type SidebarView = 'explorer' | 'search' | 'git'
 export type PaletteMode = 'files' | 'commands' | 'line' | 'models'
 
 export interface Tab {
@@ -181,7 +181,10 @@ export async function initialize(): Promise<void> {
       ...DEFAULT_SETTINGS,
       ...settings,
       ai: { ...DEFAULT_SETTINGS.ai, ...settings.ai },
-      agent: { ...DEFAULT_SETTINGS.agent, ...settings.agent }
+      agent: { ...DEFAULT_SETTINGS.agent, ...settings.agent },
+      mcpServers: settings.mcpServers ?? {},
+      mcpProjectEnabled: settings.mcpProjectEnabled ?? {},
+      lsp: { ...DEFAULT_SETTINGS.lsp, ...settings.lsp }
     },
     recentWorkspaces: session.recentWorkspaces ?? []
   })

@@ -2,7 +2,7 @@
 
 Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vous apportez vos propres clés API** (Anthropic, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, Ollama…).
 
-> État : **phase 6 — indexation du code**. Les finitions (Git, serveurs de langage, MCP, règles, installateurs) arrivent dans la dernière phase.
+> État : **les 7 phases de la feuille de route sont réalisées** (éditeur, clés API, chat, autocomplétion, agent, indexation, finitions).
 
 ## Fonctionnalités actuelles
 
@@ -42,6 +42,12 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
   - **recherche par mots-clés locale** (BM25, aucun envoi réseau) et, si vous l’activez pour le projet, **recherche sémantique** par embeddings (Voyage AI — recommandé par Anthropic —, OpenAI, Gemini, Mistral, Ollama…), combinées par fusion de classements ;
   - rien n’est envoyé au fournisseur d’embeddings sans votre accord explicite par projet (estimation des jetons affichée) ; changement de modèle = vecteurs recalculés ;
   - utilisée par `@codebase` dans le chat, par l’outil `codebase_search` de l’agent et par le mode « sémantique » de la vue Recherche.
+- **Contrôle de source Git** (`Ctrl+Maj+G`) : fichiers modifiés, indexés, en conflit ; diff par fichier ; indexer, désindexer, annuler ; commit (ou modification du dernier) ; **message de commit rédigé par l’IA** à partir des modifications indexées et du style des commits précédents ; branches (changer, créer) ; pull, push, fetch ; couleurs Git dans l’explorateur et compteur dans la barre d’activité.
+- **Serveurs de langage (LSP)** : vérification des types sur tout le projet, autocomplétion intelligente, survol, aller à la définition (`F12`, `Ctrl`+clic), références, renommage (`F2`), corrections rapides, mise en forme.
+  - **TypeScript / JavaScript intégré** (aucune installation) ; Python (pyright, basedpyright, pylsp), Go (gopls), Rust (rust-analyzer), C/C++ (clangd) détectés automatiquement s’ils sont installés ;
+  - page Paramètres › *Langages* : état, activation par langage, commande d’installation.
+- **Serveurs MCP** (Model Context Protocol) pour l’agent : configuration au format Cursor / Claude Desktop (`mcpServers`, commande locale ou URL distante), état et outils de chaque serveur, appels soumis à votre accord (ou autorisés par serveur). Les serveurs déclarés par un projet (`.cursor/mcp.json`, `.mcp.json`) restent désactivés tant que vous ne les autorisez pas, et ne peuvent pas s’auto-approuver.
+- **Règles** : vos règles personnelles (Paramètres) et celles du projet — `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.cursor/rules/*.mdc` (en-têtes `description`, `globs`, `alwaysApply`) — sont ajoutées au chat, à l’agent et à l’édition en ligne ; les règles « à la demande » sont proposées à l’agent.
 - Interface entièrement **en français**.
 
 ## Prérequis
@@ -67,9 +73,23 @@ Autres scripts :
 | `npm start` | lance la version compilée |
 | `npm run typecheck` | vérifie les types TypeScript |
 | `npm test` | lance les tests unitaires (Vitest) |
-| `npm run dist` | crée un installateur (Windows, macOS ou Linux) dans `release/` |
+| `npm run dist` | crée les installateurs de la plateforme courante dans `release/` |
+| `npm run dist:win` / `dist:mac` / `dist:linux` | installateur pour une plateforme précise (`.exe`, `.dmg`, `.AppImage` / `.deb`) |
+| `npm run icon` | régénère l’icône `build/icon.png` |
 
-> `node-pty` utilise N-API : le même binaire fonctionne avec Node et Electron. En cas d’erreur de chargement du module, lancez `npm run rebuild`.
+> `node-pty` utilise N-API : le binaire compilé par `npm install` fonctionne tel quel dans Electron (la reconstruction est désactivée dans `electron-builder.yml`).
+
+## Installateurs et intégration continue
+
+- `.github/workflows/ci.yml` vérifie les types, lance les tests et compile à chaque push.
+- `.github/workflows/release.yml` construit les installateurs **Windows (.exe), macOS (.dmg) et Linux (.AppImage, .deb)** quand vous poussez une étiquette de version, puis crée un brouillon de publication GitHub avec les fichiers :
+
+```bash
+git tag v0.1.0
+git push --tags
+```
+
+Les installateurs ne sont pas signés par défaut (Windows SmartScreen et macOS Gatekeeper afficheront un avertissement). Pour les signer, ajoutez vos certificats dans les secrets du dépôt (`CSC_LINK`, `CSC_KEY_PASSWORD`, et pour macOS `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`) et retirez `CSC_IDENTITY_AUTO_DISCOVERY: false`.
 
 ## Architecture
 
@@ -100,4 +120,4 @@ Sécurité : `contextIsolation` et `sandbox` sont activés, `nodeIntegration` es
 4. ✅ **Autocomplétion IA** (Tab)
 5. ✅ **Mode Agent** : modifications multi-fichiers, exécution de commandes, points de restauration
 6. ✅ **Indexation du code** et recherche sémantique `@codebase`
-7. **Finitions** : Git, serveurs de langage (LSP), serveurs MCP, règles de projet, installateurs
+7. ✅ **Finitions** : Git, serveurs de langage (LSP), serveurs MCP, règles de projet, installateurs

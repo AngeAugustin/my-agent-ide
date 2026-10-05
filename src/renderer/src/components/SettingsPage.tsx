@@ -3,6 +3,8 @@ import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
 import { updateSettings, useIde } from '../store/ide'
 import { AiSettingsSection } from './AiSettings'
 import { IndexSettings } from './IndexSettings'
+import { McpSettings } from './McpSettings'
+import { LspSettings } from './LspSettings'
 import { commands } from '../lib/commands'
 import { formatKeybinding } from '../lib/keybindings'
 
@@ -42,15 +44,17 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai' | 'index'
+type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai' | 'index' | 'mcp' | 'lsp'
 
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'Général' },
   { id: 'editor', label: 'Éditeur' },
+  { id: 'lsp', label: 'Langages' },
   { id: 'terminal', label: 'Terminal' },
   { id: 'files', label: 'Fichiers' },
   { id: 'ai', label: 'Modèles et clés API' },
   { id: 'index', label: 'Indexation du code' },
+  { id: 'mcp', label: 'Serveurs MCP' },
   { id: 'shortcuts', label: 'Raccourcis clavier' }
 ]
 
@@ -165,6 +169,8 @@ export function SettingsPage() {
 
         {section === 'ai' && <AiSettingsSection />}
         {section === 'index' && <IndexSettings />}
+        {section === 'mcp' && <McpSettings />}
+        {section === 'lsp' && <LspSettings />}
 
         {section === 'shortcuts' && (
           <>

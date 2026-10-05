@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { ChatMessage, ContentPart, ModelRef } from '@shared/ai'
 import { agentSystemPrompt } from '@shared/agent'
 import { agentStepMessages, type AgentStep } from '../lib/agentHistory'
+import { rulesSection } from '../lib/rules'
 export { agentStepMessages }
 export type { AgentStep, AgentToolRun, ToolRunStatus } from '../lib/agentHistory'
 import { streamChat, type ChatHandle } from '../lib/ai'
@@ -284,15 +285,18 @@ export async function sendMessage(text: string): Promise<void> {
   if (mode === 'agent' && !agentRunner) throw new Error('Le mode Agent n’est pas disponible.')
 
   if (!conv) {
+    // Les règles sont figées dans le prompt système à la création de la conversation.
+    const ruleFiles = pendingContexts().flatMap((c) => (c.kind === 'file' || c.kind === 'selection' || c.kind === 'folder' ? [c.path] : []))
+    const rules = await rulesSection(ruleFiles, { listAvailable: mode === 'agent' })
     conv = {
       id: newId('conv'),
       title: question.replace(/\s+/g, ' ').slice(0, 60),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       system:
-        mode === 'agent'
+        (mode === 'agent'
           ? agentSystemPrompt({ os: osName(), workspace: ide.workspace!, date: new Date().toISOString().slice(0, 10) })
-          : chatSystemPrompt({ os: osName(), workspace: ide.workspace, activeFile: null }),
+          : chatSystemPrompt({ os: osName(), workspace: ide.workspace, activeFile: null })) + rules.text,
       model,
       mode,
       turns: []

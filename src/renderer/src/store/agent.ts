@@ -21,9 +21,12 @@ import {
   type UserTurn
 } from './chat'
 import { notify, reportError, updateSettings, useIde } from './ide'
+import { mcpTools, setAutoApprove, type McpToolRef } from './mcp'
 
 /** Demande d'approbation en attente (affichée dans le chat). */
-export const useAgent = create<{ approval: { turnId: string; stepId: string; index: number; command: string } | null }>()(() => ({
+export const useAgent = create<{
+  approval: { turnId: string; stepId: string; index: number; command: string; mcp?: McpToolRef } | null
+}>()(() => ({
   approval: null
 }))
 
@@ -40,8 +43,11 @@ export function answerApproval(decision: 'run' | 'deny' | 'always'): void {
   const pending = useAgent.getState().approval
   if (!run?.resolveApproval || !pending) return
   if (decision === 'always') {
-    const agent = useIde.getState().settings.agent
-    if (!agent.allowlist.includes(pending.command)) void updateSettings({ agent: { ...agent, allowlist: [...agent.allowlist, pending.command] } })
+    if (pending.mcp) void setAutoApprove(pending.mcp.source, pending.mcp.server, true)
+    else {
+      const agent = useIde.getState().settings.agent
+      if (!agent.allowlist.includes(pending.command)) void updateSettings({ agent: { ...agent, allowlist: [...agent.allowlist, pending.command] } })
+    }
   }
   const resolve = run.resolveApproval
   run.resolveApproval = null
@@ -86,6 +92,9 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
   run = current
 
   updateTurn(convId, turnId, (t) => ({ ...t, steps: [] }))
+  // Outils MCP des serveurs connectés au début de la demande.
+  const mcp = mcpTools()
+  const toolDefinitions = [...AGENT_TOOLS, ...mcp.definitions]
 
   try {
     for (let i = 0; i < settings.maxSteps && !current.stopped; i++) {
@@ -108,7 +117,7 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
           model: model.modelId,
           system: conv.system,
           messages: [...history, ...agentStepMessages(steps)],
-          tools: AGENT_TOOLS,
+          tools: toolDefinitions,
           showReasoning: ide.settings.showReasoning
         },
         (ev) => {
@@ -177,11 +186,12 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
             if (!(path in checkpoint)) checkpoint[path] = original
             updateUserTurn(convId, userTurnId, (u) => ({ ...u, checkpoint: { files: { ...checkpoint } } }))
           },
-          approve: (command) =>
+          mcp: mcp.refs,
+          approve: (command, mcpRef) =>
             new Promise<boolean>((resolve) => {
               if (current.stopped) return resolve(false)
               current.resolveApproval = resolve
-              useAgent.setState({ approval: { turnId, stepId: step.id, index: idx, command } })
+              useAgent.setState({ approval: { turnId, stepId: step.id, index: idx, command, mcp: mcpRef } })
               patchTool(convId, turnId, step.id, idx, (r) => ({ ...r, status: 'approval' }))
             }).then((ok) => {
               patchTool(convId, turnId, step.id, idx, (r) => ({ ...r, status: ok ? 'running' : 'denied' }))
@@ -195,7 +205,7 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
         toolRun.output = outcome.output
         toolRun.isError = outcome.isError
         toolRun.summary = outcome.summary
-        const denied = toolRun.call.name === 'run_command' && outcome.output.startsWith('L’utilisateur a refusé')
+        const denied = outcome.output.startsWith('L’utilisateur a refusé')
         toolRun.status = denied ? 'denied' : outcome.isError ? 'error' : 'done'
         patchTool(convId, turnId, step.id, idx, (r) => ({ ...r, ...toolRun, live: r.live }))
       }

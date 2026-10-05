@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { ChatEvent } from '@shared/ai'
 import type { IndexStatus } from '@shared/codeindex'
+import type { McpServerStatus } from '@shared/mcp'
 import type { FsChangeEvent, IdeApi } from '@shared/types'
 
 function on<T extends unknown[]>(channel: string, cb: (...args: T) => void): () => void {
@@ -64,7 +65,21 @@ const api: IdeApi = {
     save: (workspace, data) => ipcRenderer.invoke('chats:save', workspace, data)
   },
   git: {
-    diff: (cwd) => ipcRenderer.invoke('git:diff', cwd)
+    diff: (cwd) => ipcRenderer.invoke('git:diff', cwd),
+    status: (cwd) => ipcRenderer.invoke('git:status', cwd),
+    init: (cwd) => ipcRenderer.invoke('git:init', cwd),
+    stage: (cwd, paths) => ipcRenderer.invoke('git:stage', cwd, paths),
+    unstage: (cwd, paths) => ipcRenderer.invoke('git:unstage', cwd, paths),
+    discard: (cwd, paths) => ipcRenderer.invoke('git:discard', cwd, paths),
+    commit: (cwd, message, amend) => ipcRenderer.invoke('git:commit', cwd, message, amend),
+    branches: (cwd) => ipcRenderer.invoke('git:branches', cwd),
+    checkout: (cwd, branch, create) => ipcRenderer.invoke('git:checkout', cwd, branch, create),
+    push: (cwd) => ipcRenderer.invoke('git:push', cwd),
+    pull: (cwd) => ipcRenderer.invoke('git:pull', cwd),
+    fetch: (cwd) => ipcRenderer.invoke('git:fetch', cwd),
+    show: (cwd, ref, path) => ipcRenderer.invoke('git:show', cwd, ref, path),
+    stagedDiff: (cwd) => ipcRenderer.invoke('git:stagedDiff', cwd),
+    log: (cwd, count) => ipcRenderer.invoke('git:log', cwd, count)
   },
   index: {
     open: (root) => ipcRenderer.invoke('index:open', root),
@@ -75,6 +90,21 @@ const api: IdeApi = {
     search: (query, limit) => ipcRenderer.invoke('index:search', query, limit),
     settingsChanged: () => ipcRenderer.invoke('index:settingsChanged'),
     onStatus: (cb) => on<[IndexStatus]>('index:status', cb)
+  },
+  lsp: {
+    servers: (root) => ipcRenderer.invoke('lsp:servers', root),
+    start: (serverId, root) => ipcRenderer.invoke('lsp:start', serverId, root),
+    send: (id, message) => ipcRenderer.send('lsp:send', id, message),
+    stop: (id) => ipcRenderer.invoke('lsp:stop', id),
+    onMessage: (cb) => on<[number, unknown]>('lsp:message', cb),
+    onExit: (cb) => on<[number, number | null]>('lsp:exit', cb)
+  },
+  mcp: {
+    sync: (root) => ipcRenderer.invoke('mcp:sync', root),
+    status: () => ipcRenderer.invoke('mcp:status'),
+    reconnect: (source, name, root) => ipcRenderer.invoke('mcp:reconnect', source, name, root),
+    call: (source, server, tool, args) => ipcRenderer.invoke('mcp:call', source, server, tool, args),
+    onStatus: (cb) => on<[McpServerStatus[]]>('mcp:status', cb)
   },
   agent: {
     run: (id, command, cwd, timeoutSeconds) => ipcRenderer.invoke('agent:run', id, command, cwd, timeoutSeconds),

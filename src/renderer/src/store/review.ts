@@ -18,6 +18,8 @@ export interface Review {
   error?: string
   /** Modification déjà appliquée par l'agent : la vue permet seulement de la consulter ou de l'annuler. */
   applied?: { convId: string; original: string | null }
+  /** Simple consultation (diff Git) : aucune action d'application. */
+  readonly?: boolean
 }
 
 interface ReviewState {
@@ -170,5 +172,16 @@ export async function openAgentDiff(convId: string, path: string, original: stri
   if (!tabs.some((t) => t.id === id)) {
     useIde.setState({ tabs: [...tabs, { id, kind: 'diff', title: `${basename(path)} (agent)`, dirty: false, preview: false }] })
   }
+  useIde.setState({ activeId: id })
+}
+
+/** Ouvre une vue de différences en lecture seule (ex. modifications Git). */
+export function openReadonlyDiff(id: string, path: string, original: string, modified: string, title: string): void {
+  useReview.setState((s) => ({
+    reviews: { ...s.reviews, [id]: { id, path, original, proposed: modified, isNew: original === '', status: 'ready', readonly: true } }
+  }))
+  const tabs = useIde.getState().tabs
+  if (!tabs.some((t) => t.id === id)) useIde.setState({ tabs: [...tabs, { id, kind: 'diff', title, dirty: false, preview: false }] })
+  else useIde.setState({ tabs: tabs.map((t) => (t.id === id ? { ...t, title } : t)) })
   useIde.setState({ activeId: id })
 }

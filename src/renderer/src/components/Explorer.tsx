@@ -21,8 +21,19 @@ import { basename, dirname, isInside, join, relative, validateFileName } from '.
 import { Icon } from './Icon'
 import { showContextMenu, type MenuItem } from './ContextMenu'
 import { newTerminal } from '../store/terminals'
+import { gitDecorations, useGit } from '../store/git'
 
 const INDENT = 12
+
+/** État Git d'un chemin (calculé une fois par mise à jour de l'état Git). */
+let decoCache: { status: unknown; ws: string | null; map: Map<string, string> } = { status: null, ws: null, map: new Map() }
+function useGitKind(path: string): string | undefined {
+  return useGit((s) => {
+    const ws = useIde.getState().workspace
+    if (decoCache.status !== s.status || decoCache.ws !== ws) decoCache = { status: s.status, ws, map: gitDecorations(s.status, ws) }
+    return decoCache.map.get(path)
+  })
+}
 
 function InlineInput({
   input,
@@ -94,6 +105,7 @@ function TreeNode({ entry, depth }: { entry: FileEntry; depth: number }) {
   const dirty = useIde((s) => s.tabs.some((t) => t.id === entry.path && t.dirty))
   const pending = useIde((s) => s.pendingInput)
   const workspace = useIde((s) => s.workspace)!
+  const gitKind = useGitKind(entry.path)
   const [dropTarget, setDropTarget] = useState(false)
 
   if (pending?.mode === 'rename' && pending.path === entry.path) {
@@ -178,8 +190,9 @@ function TreeNode({ entry, depth }: { entry: FileEntry; depth: number }) {
           {entry.isDirectory && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} />}
         </span>
         <Icon name={icon.icon} color={icon.color} />
-        <span className="tree-label">{entry.name}</span>
+        <span className={`tree-label${gitKind && gitKind !== 'folder' ? ` git-${gitKind}` : ''}`}>{entry.name}</span>
         {dirty && <span className="dirty-dot" title="Non enregistré" />}
+        {gitKind && <span className={`git-dot git-${gitKind}`} title={gitKind === 'folder' ? 'Contient des modifications' : undefined} />}
       </div>
       {entry.isDirectory && expanded && (
         <TreeChildren dir={entry.path} entries={children} depth={depth + 1} />

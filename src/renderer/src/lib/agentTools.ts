@@ -14,6 +14,7 @@ import { diffLines, diffStats } from './diff'
 import { basename, relative } from './paths'
 import { closeTab, getFileIndex, useIde } from '../store/ide'
 import type { ToolSummary } from './agentHistory'
+import type { McpToolRef } from '../store/mcp'
 export type { ToolSummary }
 
 export interface ToolOutcome {
@@ -27,8 +28,10 @@ export interface ToolContext {
   settings: AgentSettings
   /** Mémorise l'état d'origine d'un fichier avant sa première modification (point de restauration). */
   snapshot(path: string, original: string | null): void
-  /** Demande l'accord de l'utilisateur pour une commande. */
-  approve(command: string): Promise<boolean>
+  /** Demande l'accord de l'utilisateur pour une commande ou un outil MCP. */
+  approve(command: string, mcp?: McpToolRef): Promise<boolean>
+  /** Outils MCP disponibles pour cette exécution (nom exposé → serveur et outil). */
+  mcp?: Map<string, McpToolRef>
   /** Sortie d'une commande en cours (affichage en direct). */
   onCommandOutput(chunk: string): void
   /** Identifiant de la commande en cours (pour l'arrêter). */
@@ -92,6 +95,8 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
   if (call.inputError !== undefined) {
     return { output: JSON.stringify({ INVALID_JSON: call.inputError.slice(0, 2000) }), isError: true }
   }
+  const mcp = ctx.mcp?.get(call.name)
+  if (mcp) return executeMcpTool(call, mcp, ctx)
   const invalid = validateToolInput(call.name, call.input)
   if (invalid) return { output: invalid, isError: true }
   const input = call.input as Record<string, unknown>
@@ -275,6 +280,21 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
   }
 }
 
+async function executeMcpTool(call: ToolCall, ref: McpToolRef, ctx: ToolContext): Promise<ToolOutcome> {
+  const args = call.input && typeof call.input === 'object' && !Array.isArray(call.input) ? (call.input as Record<string, unknown>) : {}
+  const summary = { command: `${ref.server} › ${ref.tool}` }
+  if (!ref.autoApprove) {
+    const ok = await ctx.approve(`${ref.server} › ${ref.tool}\n${JSON.stringify(args, null, 2)}`, ref)
+    if (!ok) return { output: 'L’utilisateur a refusé l’exécution de cet outil.', isError: true, summary }
+  }
+  try {
+    const res = await window.api.mcp.call(ref.source, ref.server, ref.tool, args)
+    return { output: truncateOutput(res.text), isError: res.isError, summary }
+  } catch (err) {
+    return { output: `Erreur MCP : ${err instanceof Error ? err.message : String(err)}`, isError: true, summary }
+  }
+}
+
 /** Libellé lisible d'un appel d'outil, pour l'interface. */
 export function describeTool(call: ToolCall): { icon: string; label: string } {
   const input = (call.input ?? {}) as Record<string, unknown>
@@ -301,6 +321,10 @@ export function describeTool(call: ToolCall): { icon: string; label: string } {
     case 'get_problems':
       return { icon: 'warning', label: path ? `Problèmes de ${basename(path)}` : 'Lecture des problèmes' }
     default:
+      if (call.name.startsWith('mcp__')) {
+        const [, server, ...tool] = call.name.split('__')
+        return { icon: 'plug', label: `${server} › ${tool.join('__')}` }
+      }
       return { icon: 'tools', label: call.name }
   }
 }

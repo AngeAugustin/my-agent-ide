@@ -9,6 +9,9 @@ import {
 import { abortAllChats, registerAiHandlers } from './ai/ipc'
 import { killAllAgentCommands, registerAgentHandlers } from './agentCommands'
 import { registerChatHandlers } from './chats'
+import { registerGitHandlers } from './git'
+import { closeAllMcp, registerMcpHandlers } from './mcp'
+import { registerLspHandlers, stopAllLsp } from './lsp'
 import { registerIndexHandlers } from './codeindex/ipc'
 import { registerFileHandlers, stopWatching } from './files'
 import { buildMenu } from './menu'
@@ -31,6 +34,8 @@ function createWindow(): void {
     show: false,
     title: 'My Agent IDE',
     backgroundColor: '#1e1e1e',
+    // Icône de fenêtre (Linux) ; les installateurs utilisent build/icon.png.
+    ...(process.platform === 'linux' && !app.isPackaged ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     autoHideMenuBar: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -120,6 +125,9 @@ app.whenReady().then(() => {
   const ai = registerAiHandlers(getContents, () => settingsStore.get())
   registerIndexHandlers(getContents, () => settingsStore.get(), ai)
   registerChatHandlers()
+  registerGitHandlers()
+  registerMcpHandlers(getContents, () => settingsStore.get())
+  registerLspHandlers(getContents, () => settingsStore.get())
   registerAgentHandlers(getContents)
   Menu.setApplicationMenu(buildMenu(getContents))
   createWindow()
@@ -132,6 +140,8 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   abortAllChats()
   killAllAgentCommands()
+  void closeAllMcp()
+  stopAllLsp()
   killAllTerminals()
   stopWatching()
   if (process.platform !== 'darwin') app.quit()

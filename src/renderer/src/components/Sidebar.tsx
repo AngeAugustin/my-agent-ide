@@ -4,6 +4,8 @@ import { toggleChat, useChat } from '../store/chat'
 import { Explorer } from './Explorer'
 import { Icon } from './Icon'
 import { SearchView } from './SearchView'
+import { GitPanel } from './GitPanel'
+import { useGit } from '../store/git'
 
 export function ActivityBar() {
   const view = useIde((s) => s.sidebarView)
@@ -12,7 +14,8 @@ export function ActivityBar() {
   const panelVisible = useIde((s) => s.panelVisible)
   const chatVisible = useChat((s) => s.visible)
 
-  const item = (id: 'explorer' | 'search', icon: string, title: string) => (
+  const changes = useGit((s) => s.status?.files.length ?? 0)
+  const item = (id: 'explorer' | 'search' | 'git', icon: string, title: string, badge = 0) => (
     <button
       className={`activity-item${visible && view === id ? ' active' : ''}`}
       title={title}
@@ -20,6 +23,7 @@ export function ActivityBar() {
       onClick={() => (visible && view === id ? useIde.setState({ sidebarVisible: false }) : showSidebarView(id))}
     >
       <Icon name={icon} />
+      {badge > 0 && <span className="activity-badge">{badge > 99 ? '99+' : badge}</span>}
     </button>
   )
 
@@ -27,6 +31,7 @@ export function ActivityBar() {
     <nav className="activity-bar">
       {item('explorer', 'files', 'Explorateur (Ctrl+Maj+E)')}
       {item('search', 'search', 'Recherche (Ctrl+Maj+F)')}
+      {item('git', 'source-control', 'Contrôle de source (Ctrl+Maj+G)', changes)}
       <button className={`activity-item${panelVisible ? ' active' : ''}`} title="Terminal (Ctrl+`)" aria-label="Terminal" onClick={toggleTerminalPanel}>
         <Icon name="terminal" />
       </button>
@@ -62,7 +67,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar" style={{ width }}>
-      {view === 'explorer' ? <Explorer /> : <SearchView />}
+      {view === 'explorer' ? <Explorer /> : view === 'search' ? <SearchView /> : <GitPanel />}
       <div className="resizer-col" onMouseDown={startResize} onDoubleClick={() => setSidebarWidth(260)} />
     </aside>
   )

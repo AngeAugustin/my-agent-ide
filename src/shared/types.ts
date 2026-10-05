@@ -14,6 +14,9 @@ import {
 import type { CompletionRequest, CompletionResult } from './completion'
 import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from './agent'
 import type { IndexStatus, SearchHit } from './codeindex'
+import type { GitBranch, GitStatus } from './git'
+import type { McpServerEntry, McpServerStatus } from './mcp'
+import { DEFAULT_LSP_SETTINGS, type LspServerStatus, type LspSettings } from './lsp'
 
 export interface FileEntry {
   name: string
@@ -65,11 +68,18 @@ export interface Settings {
   terminalFontSize: number
   terminalShell: string
   showReasoning: boolean
+  /** Règles personnelles ajoutées à toutes les requêtes du chat, de l'agent et de l'édition. */
+  userRules: string
   autocomplete: boolean
   autocompleteDelay: number
   excludedFolders: string[]
   ai: AiSettings
   agent: AgentSettings
+  /** Serveurs MCP de l'utilisateur (format « mcpServers » de Cursor / Claude Desktop). */
+  mcpServers: Record<string, McpServerEntry>
+  /** Serveurs MCP de projet autorisés, par dossier de projet. */
+  mcpProjectEnabled: Record<string, string[]>
+  lsp: LspSettings
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -87,11 +97,15 @@ export const DEFAULT_SETTINGS: Settings = {
   terminalFontSize: 13,
   terminalShell: '',
   showReasoning: true,
+  userRules: '',
   autocomplete: true,
   autocompleteDelay: 300,
   excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__'],
   ai: DEFAULT_AI_SETTINGS,
-  agent: DEFAULT_AGENT_SETTINGS
+  agent: DEFAULT_AGENT_SETTINGS,
+  mcpServers: {},
+  mcpProjectEnabled: {},
+  lsp: DEFAULT_LSP_SETTINGS
 }
 
 export interface SessionState {
@@ -173,6 +187,20 @@ export interface IdeApi {
   }
   git: {
     diff(cwd: string): Promise<string>
+    status(cwd: string): Promise<GitStatus>
+    init(cwd: string): Promise<string>
+    stage(cwd: string, paths: string[]): Promise<string>
+    unstage(cwd: string, paths: string[]): Promise<string>
+    discard(cwd: string, paths: string[]): Promise<string>
+    commit(cwd: string, message: string, amend: boolean): Promise<string>
+    branches(cwd: string): Promise<GitBranch[]>
+    checkout(cwd: string, branch: string, create: boolean): Promise<string>
+    push(cwd: string): Promise<string>
+    pull(cwd: string): Promise<string>
+    fetch(cwd: string): Promise<string>
+    show(cwd: string, ref: string, path: string): Promise<string | null>
+    stagedDiff(cwd: string): Promise<string>
+    log(cwd: string, count: number): Promise<string[]>
   }
   index: {
     open(root: string): Promise<IndexStatus>
@@ -183,6 +211,21 @@ export interface IdeApi {
     search(query: string, limit?: number): Promise<SearchHit[]>
     settingsChanged(): Promise<void>
     onStatus(cb: (status: IndexStatus) => void): () => void
+  }
+  lsp: {
+    servers(root: string | null): Promise<LspServerStatus[]>
+    start(serverId: string, root: string): Promise<{ id: number; rootUri: string; tsserverPath: string | null }>
+    send(id: number, message: unknown): void
+    stop(id: number): Promise<void>
+    onMessage(cb: (id: number, message: unknown) => void): () => void
+    onExit(cb: (id: number, code: number | null) => void): () => void
+  }
+  mcp: {
+    sync(root: string | null): Promise<McpServerStatus[]>
+    status(): Promise<McpServerStatus[]>
+    reconnect(source: 'user' | 'project', name: string, root: string | null): Promise<McpServerStatus[]>
+    call(source: 'user' | 'project', server: string, tool: string, args: Record<string, unknown>): Promise<{ isError: boolean; text: string }>
+    onStatus(cb: (statuses: McpServerStatus[]) => void): () => void
   }
   agent: {
     run(

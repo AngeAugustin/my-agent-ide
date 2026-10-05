@@ -27,6 +27,7 @@ import { killTerminal, newTerminal, toggleTerminalPanel } from '../store/termina
 import { getActiveEditor } from './activeEditor'
 import { startInlineEdit } from './inlineEdit'
 import { toggleAutocomplete } from './autocomplete'
+import { commit as gitCommit, generateCommitMessage, pull as gitPull, push as gitPush } from '../store/git'
 import { chatWithSelection, newConversation, setMode, toggleChat } from '../store/chat'
 
 export interface Command {
@@ -110,6 +111,11 @@ export const commands: Command[] = [
   },
 
   { id: 'view.explorer', title: 'Afficher l’explorateur', category: 'Affichage', keybinding: 'Mod+Shift+E', run: () => showSidebarView('explorer') },
+  { id: 'view.git', title: 'Afficher le contrôle de source', category: 'Affichage', keybinding: 'Mod+Shift+G', run: () => showSidebarView('git') },
+  { id: 'git.commit', title: 'Commit', category: 'Git', when: hasWorkspace, run: () => { showSidebarView('git'); void gitCommit() } },
+  { id: 'git.generateMessage', title: 'Générer le message de commit avec l’IA', category: 'Git', when: hasWorkspace, run: () => { showSidebarView('git'); void generateCommitMessage() } },
+  { id: 'git.pull', title: 'Pull', category: 'Git', when: hasWorkspace, run: () => gitPull() },
+  { id: 'git.push', title: 'Push', category: 'Git', when: hasWorkspace, run: () => gitPush() },
   { id: 'view.search', title: 'Rechercher dans les fichiers', category: 'Affichage', keybinding: 'Mod+Shift+F', run: () => showSidebarView('search') },
   { id: 'view.toggleSidebar', title: 'Afficher/masquer la barre latérale', category: 'Affichage', keybinding: 'Mod+B', run: toggleSidebar },
   { id: 'view.toggleTerminal', title: 'Afficher/masquer le terminal', category: 'Affichage', keybinding: 'Ctrl+[Backquote]', altKeybinding: 'Mod+J', run: toggleTerminalPanel },

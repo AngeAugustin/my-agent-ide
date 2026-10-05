@@ -493,6 +493,8 @@ export function AiSettingsSection() {
         </div>
       )}
 
+      <RulesSettings />
+
       <AgentSettingsSection />
 
       <h3>Fournisseurs</h3>
@@ -579,6 +581,37 @@ function AgentSettingsSection() {
         </div>
         <div className="setting-control">
           <input type="number" min={5} max={3600} value={agent.commandTimeout} onChange={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 3600) set({ commandTimeout: v }) }} />
+        </div>
+      </div>
+    </>
+  )
+}
+
+function RulesSettings() {
+  const userRules = useIde((s) => s.settings.userRules)
+  const [text, setText] = useState(userRules)
+  useEffect(() => setText(userRules), [userRules])
+  return (
+    <>
+      <h3>Règles</h3>
+      <div className="setting-row model-role">
+        <div className="setting-text">
+          <div className="setting-title">Vos règles personnelles</div>
+          <div className="setting-description">
+            Ajoutées au chat, à l’agent et à l’édition en ligne, dans tous les projets. Les règles d’un projet sont lues automatiquement dans{' '}
+            <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.cursorrules</code> et <code>.cursor/rules/*.mdc</code> (en-tête{' '}
+            <code>globs</code> / <code>alwaysApply</code> / <code>description</code> pris en charge).
+          </div>
+        </div>
+        <div className="setting-control">
+          <textarea
+            className="allowlist rules-input"
+            rows={6}
+            placeholder="ex. Réponds en français. Utilise TypeScript strict. Écris des tests pour chaque fonction."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() => text !== userRules && void updateSettings({ userRules: text })}
+          />
         </div>
       </div>
     </>

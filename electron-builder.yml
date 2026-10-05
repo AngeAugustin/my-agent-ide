@@ -1,23 +1,48 @@
 appId: com.myagentide.app
 productName: My Agent IDE
+copyright: Copyright © 2026 Ange Augustin
 directories:
   output: release
   buildResources: build
 files:
   - out/**
   - package.json
+# node-pty utilise N-API : le binaire compilé par « npm install » fonctionne tel quel dans Electron.
+npmRebuild: false
+# Modules qui lancent des processus ou chargent des binaires : ils doivent rester hors de l'archive asar.
 asarUnpack:
   - node_modules/node-pty/**
+  - node_modules/typescript-language-server/**
+  - node_modules/typescript/**
+# electron-builder retire les *.d.ts des dépendances ; le serveur TypeScript a besoin de ses bibliothèques
+# standard (lib.*.d.ts) à côté de tsserver.js : on copie donc typescript/lib tel quel dans les ressources.
+extraResources:
+  - from: node_modules/typescript
+    to: typescript
+    filter:
+      - package.json
+      - lib/**/*
 win:
-  target: nsis
+  target:
+    - nsis
+  icon: build/icon.png
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-Setup-${version}.${ext}
 mac:
-  target: dmg
+  target:
+    - dmg
   category: public.app-category.developer-tools
+  icon: build/icon.png
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
 linux:
   target:
     - AppImage
     - deb
   category: Development
+  icon: build/icon.png
+  maintainer: Ange Augustin
+  artifactName: ${productName}-${version}-${arch}.${ext}
+publish: null

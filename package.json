@@ -14,12 +14,19 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "rebuild": "electron-builder install-app-deps",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder --publish never",
+    "icon": "node scripts/make-icon.mjs",
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "node-pty": "^1.1.0",
-    "openai": "^7.28.0"
+    "openai": "^7.28.0",
+    "typescript": "~5.9",
+    "typescript-language-server": "^6.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
@@ -36,9 +43,10 @@
     "monaco-editor": "^0.57.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "typescript": "~5.9",
     "vite": "^7.3.6",
     "vitest": "^5.0.3",
     "zustand": "^5.0.15"
-  }
+  },
+  "homepage": "https://github.com/AngeAugustin/my-agent-ide",
+  "desktopName": "my-agent-ide.desktop"
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { monaco, languageForPath } from '../lib/monaco'
 import { diffLines, diffStats } from '../lib/diff'
 import { acceptReview, closeReview, useReview } from '../store/review'
-import { useIde } from '../store/ide'
+import { openFile, useIde } from '../store/ide'
 import { revertFile } from '../store/agent'
 import { relative } from '../lib/paths'
 import { Icon } from './Icon'
@@ -27,7 +27,7 @@ export function DiffReview({ id }: { id: string }) {
     const editor = monaco.editor.createDiffEditor(containerRef.current!, {
       automaticLayout: true,
       originalEditable: false,
-      readOnly: !!review.applied,
+      readOnly: !!review.applied || !!review.readonly,
       renderSideBySide: true,
       ignoreTrimWhitespace: false,
       fontSize: useIde.getState().settings.editorFontSize,
@@ -80,8 +80,9 @@ export function DiffReview({ id }: { id: string }) {
         <Icon name="diff" />
         <span className="diff-path" title={review.path}>
           {rel}
-          {review.isNew && <span className="status-badge ok">nouveau fichier</span>}
+          {review.isNew && !review.readonly && <span className="status-badge ok">nouveau fichier</span>}
           {review.applied && <span className="status-badge">modifié par l’agent</span>}
+          {review.readonly && <span className="status-badge">Git</span>}
         </span>
         <span className="diff-stats">
           <span className="added">+{stats.added}</span> <span className="removed">−{stats.removed}</span>
@@ -96,7 +97,16 @@ export function DiffReview({ id }: { id: string }) {
           <button className="icon-button" title={sideBySide ? 'Vue unifiée' : 'Vue côte à côte'} onClick={() => setSideBySide((v) => !v)}>
             <Icon name={sideBySide ? 'split-vertical' : 'split-horizontal'} />
           </button>
-          {review.applied ? (
+          {review.readonly ? (
+            <>
+              <button className="btn" onClick={() => openFile(review.path)}>
+                <Icon name="go-to-file" /> Ouvrir le fichier
+              </button>
+              <button className="btn primary" onClick={() => closeReview(id)}>
+                Fermer
+              </button>
+            </>
+          ) : review.applied ? (
             <>
               <button
                 className="btn danger"

@@ -2756,3 +2756,278 @@ textarea.allowlist {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* --- Git ----------------------------------------------------------------------- */
+
+.activity-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.git-branch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 10px 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.git-branch:hover {
+  background: var(--bg-hover);
+}
+
+.git-branch > span:first-of-type {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-picker {
+  margin: 0 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  padding: 6px;
+}
+
+.branch-picker input {
+  width: 100%;
+}
+
+.branch-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.branch-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branch-item:hover {
+  background: var(--selection);
+}
+
+.branch-item.current {
+  font-weight: 600;
+}
+
+.branch-item.create {
+  color: var(--accent);
+}
+
+.git-commit {
+  padding: 0 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.git-message {
+  position: relative;
+}
+
+.git-message textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 28px 6px 8px;
+  outline: none;
+  user-select: text;
+}
+
+.git-message textarea:focus {
+  border-color: var(--focus);
+}
+
+.git-generate {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: var(--accent);
+}
+
+.git-commit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.git-commit-row .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+label.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+}
+
+.git-files {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.git-section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.git-section-header > span:nth-child(2) {
+  flex: 1;
+}
+
+.git-section-actions {
+  display: none;
+}
+
+.git-section-header:hover .git-section-actions {
+  display: inline-flex;
+}
+
+.git-file {
+  padding-left: 22px;
+}
+
+.git-row-actions {
+  display: none;
+}
+
+.git-file:hover .git-row-actions {
+  display: inline-flex;
+}
+
+.git-file:hover .path-hint {
+  display: none;
+}
+
+.git-file .path-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+.git-letter {
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.git-modified {
+  color: #d7ba7d;
+}
+
+.git-added,
+.git-untracked {
+  color: #73c991;
+}
+
+.git-deleted,
+.git-conflict {
+  color: #f14c4c;
+}
+
+.git-renamed {
+  color: #4fc1ff;
+}
+
+.tree-label.git-deleted {
+  text-decoration: line-through;
+}
+
+.git-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.git-dot.git-folder {
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
+.rules-input {
+  font-family: inherit;
+}
+
+/* --- MCP ------------------------------------------------------------------------ */
+
+.mono {
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+textarea.mcp-json {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.mcp-tools {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 200px;
+  overflow-y: auto;
+  user-select: text;
+}
+
+.mcp-tools li {
+  margin: 2px 0;
+}
+
+.mcp-server.error {
+  border-color: rgba(241, 76, 76, 0.5);
+}
+
+.lsp-server .provider-header {
+  cursor: default;
+}
+
+.lsp-server .switch {
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.install-hint {
+  user-select: text;
+}

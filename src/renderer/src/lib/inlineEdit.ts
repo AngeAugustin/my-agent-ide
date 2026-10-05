@@ -9,6 +9,7 @@ import { INLINE_EDIT_SYSTEM, inlineEditPrompt } from './prompts'
 import { isInside, relative } from './paths'
 import { notify, useIde } from '../store/ide'
 import { InlineEditWidget } from '../components/InlineEditWidget'
+import { rulesSection } from './rules'
 
 export type InlineStatus = 'input' | 'streaming' | 'review' | 'error'
 
@@ -284,6 +285,7 @@ export class InlineEditSession {
     this.editor.updateOptions({ readOnly: true })
     this.model.pushStackElement()
 
+    const rules = await rulesSection([this.path])
     let text = ''
     let lastApplied = ''
     let timer: ReturnType<typeof setTimeout> | null = null
@@ -301,7 +303,7 @@ export class InlineEditSession {
       {
         providerId: model.providerId,
         model: model.modelId,
-        system: INLINE_EDIT_SYSTEM,
+        system: INLINE_EDIT_SYSTEM + rules.text,
         messages: [
           {
             role: 'user',
