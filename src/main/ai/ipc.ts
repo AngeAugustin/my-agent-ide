@@ -54,6 +54,14 @@ export function registerAiHandlers(getContents: () => WebContents | null, getSet
       .chat(request, (event) => getContents()?.send('ai:event', requestId, event), controller.signal)
       .finally(() => controllers.delete(requestId))
   })
+  ipcMain.handle('ai:embedTest', async (_e, providerId: string, model: string) => {
+    try {
+      const [v] = await service.embed(providerId, model, ['function bonjour() { return "monde" }'], 'query')
+      return { ok: true, dims: v.length }
+    } catch (err) {
+      return { ok: false, message: (err as Error).message }
+    }
+  })
   ipcMain.on('ai:abort', (_e, requestId: string) => controllers.get(requestId)?.abort())
 
   ipcMain.handle('ai:complete', async (_e, requestId: string, request: CompletionRequest) => {

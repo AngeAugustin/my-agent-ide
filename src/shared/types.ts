@@ -13,6 +13,7 @@ import {
 } from './ai'
 import type { CompletionRequest, CompletionResult } from './completion'
 import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from './agent'
+import type { IndexStatus, SearchHit } from './codeindex'
 
 export interface FileEntry {
   name: string
@@ -160,6 +161,7 @@ export interface IdeApi {
     chat(requestId: string, request: ChatRequest): Promise<void>
     abort(requestId: string): void
     onEvent(cb: (requestId: string, event: ChatEvent) => void): () => void
+    embedTest(providerId: string, model: string): Promise<{ ok: true; dims: number } | { ok: false; message: string }>
     complete(
       requestId: string,
       request: CompletionRequest
@@ -171,6 +173,16 @@ export interface IdeApi {
   }
   git: {
     diff(cwd: string): Promise<string>
+  }
+  index: {
+    open(root: string): Promise<IndexStatus>
+    status(): Promise<IndexStatus | null>
+    rebuild(): Promise<void>
+    enableEmbeddings(enabled: boolean): Promise<void>
+    clear(): Promise<void>
+    search(query: string, limit?: number): Promise<SearchHit[]>
+    settingsChanged(): Promise<void>
+    onStatus(cb: (status: IndexStatus) => void): () => void
   }
   agent: {
     run(

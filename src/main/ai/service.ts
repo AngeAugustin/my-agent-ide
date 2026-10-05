@@ -14,6 +14,7 @@ import {
 import { AiError, toAiError } from './errors'
 import { COMPLETION_SYSTEM, completionUserPrompt, type CompletionRequest, type CompletionResult } from '@shared/completion'
 import { fimComplete, fimEndpoint } from './providers/fim'
+import { embedTexts, type EmbeddingInput } from './providers/embeddings'
 import { supportsAdaptiveThinking } from './providers/anthropic'
 import type { KeyStore } from './keyStore'
 import { anthropicAdapter } from './providers/anthropic'
@@ -150,6 +151,9 @@ export class AiService {
   /** Vérifie la clé et l'URL en récupérant la liste des modèles. */
   async test(providerId: string): Promise<ProviderTestResult> {
     try {
+      const { def } = await this.definition(providerId)
+      // Pas de liste de modèles côté API : on vérifie la clé par un petit calcul d'embedding.
+      if (def.embeddingsOnly && def.staticModels?.length) await this.embed(providerId, def.staticModels[0].id, ['test'], 'query')
       const models = await this.models(providerId, true)
       return { ok: true, modelCount: models.length }
     } catch (err) {
@@ -251,6 +255,20 @@ export class AiService {
       throw toAiError(err, { providerName: config.definition.name, baseUrl: config.baseUrl, local: config.definition.local })
     } finally {
       await this.recordUsage(req.providerId, usage.inputTokens, usage.outputTokens)
+    }
+  }
+
+  /** Vecteurs d'embeddings pour l'indexation du code (lots traités par l'appelant). */
+  async embed(providerId: string, model: string, texts: string[], inputType: EmbeddingInput, signal?: AbortSignal): Promise<number[][]> {
+    const config = await this.resolve(providerId)
+    try {
+      const vectors = await embedTexts(config, model, texts, inputType, signal ?? AbortSignal.timeout(120_000))
+      if (vectors.length !== texts.length) throw new AiError('server', `${config.definition.name} a renvoyé ${vectors.length} vecteurs pour ${texts.length} textes.`)
+      // Estimation : environ 4 caractères par jeton.
+      await this.recordUsage(providerId, Math.ceil(texts.reduce((n, t) => n + t.length, 0) / 4), 0)
+      return vectors
+    } catch (err) {
+      throw toAiError(err, { providerName: config.definition.name, baseUrl: config.baseUrl, local: config.definition.local })
     }
   }
 

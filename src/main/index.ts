@@ -9,6 +9,7 @@ import {
 import { abortAllChats, registerAiHandlers } from './ai/ipc'
 import { killAllAgentCommands, registerAgentHandlers } from './agentCommands'
 import { registerChatHandlers } from './chats'
+import { registerIndexHandlers } from './codeindex/ipc'
 import { registerFileHandlers, stopWatching } from './files'
 import { buildMenu } from './menu'
 import { JsonStore } from './store'
@@ -116,7 +117,8 @@ app.whenReady().then(() => {
   registerAppHandlers()
   registerFileHandlers(getContents, async () => (await settingsStore.get()).excludedFolders)
   registerTerminalHandlers(getContents, async () => (await settingsStore.get()).terminalShell)
-  registerAiHandlers(getContents, () => settingsStore.get())
+  const ai = registerAiHandlers(getContents, () => settingsStore.get())
+  registerIndexHandlers(getContents, () => settingsStore.get(), ai)
   registerChatHandlers()
   registerAgentHandlers(getContents)
   Menu.setApplicationMenu(buildMenu(getContents))

@@ -4,7 +4,8 @@ import { errorContext, parseToolInput, type ProviderAdapter, type ProviderConfig
 import { toAiError } from '../errors'
 
 // Modèles qui ne servent pas à la conversation (exclus de la liste proposée).
-const NON_CHAT = /(embed|whisper|tts|dall-e|moderation|transcri|davinci|babbage|text-similarity|rerank|image-|sora)/i
+const NON_CHAT = /(whisper|tts|dall-e|moderation|transcri|davinci|babbage|text-similarity|rerank|image-|sora)/i
+const EMBEDDING = /embed/i
 
 function client(config: ProviderConfig): OpenAI {
   return new OpenAI({
@@ -79,10 +80,12 @@ function mapFinish(reason: string | null | undefined, hasTools: boolean): StopRe
 
 export const openAiAdapter: ProviderAdapter = {
   async listModels(config, signal) {
+    if (config.definition.staticModels) return config.definition.staticModels
     const models: ModelInfo[] = []
     try {
       for await (const m of client(config).models.list({ signal })) {
-        if (!NON_CHAT.test(m.id)) models.push({ id: m.id })
+        if (EMBEDDING.test(m.id)) models.push({ id: m.id, kind: 'embedding' })
+        else if (!NON_CHAT.test(m.id)) models.push({ id: m.id, kind: 'chat' })
       }
     } catch (err) {
       throw toAiError(err, errorContext(config))

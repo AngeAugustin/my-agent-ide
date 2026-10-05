@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { openPalette, toggleTheme, useIde } from '../store/ide'
 import { modelLabel, useAi } from '../store/ai'
 import { toggleAutocomplete, useAutocomplete } from '../lib/autocomplete'
+import { indexSummary, useCodeIndex } from '../store/codeIndex'
+import { openSettings } from '../store/ide'
 import { monaco } from '../lib/monaco'
 import { basename } from '../lib/paths'
 import { runCommand } from '../lib/commands'
@@ -35,6 +37,8 @@ export function StatusBar() {
   const autocompleteOn = useIde((s) => s.settings.autocomplete)
   const autocompleteModel = useIde((s) => s.settings.ai.models.autocomplete)
   const { pending, lastError } = useAutocomplete()
+  const index = useCodeIndex((s) => s.status)
+  const indexBusy = index?.state === 'scanning' || index?.state === 'embedding'
   useAi((s) => s.providers) // rafraîchit le libellé quand la liste des modèles change
 
   return (
@@ -43,6 +47,19 @@ export function StatusBar() {
         <button className="status-item" title="Ouvrir un dossier" onClick={() => runCommand('workspace.openFolder')}>
           <Icon name="folder" /> {workspace ? basename(workspace) : 'Aucun dossier'}
         </button>
+        {workspace && index && (
+          <button
+            className={`status-item${index.state === 'error' ? ' status-warning' : ''}`}
+            title={
+              index.state === 'error'
+                ? `Index du code : ${index.error}`
+                : `Index du code : ${index.files} fichiers, ${index.chunks} extraits${index.embeddingsEnabled && index.embeddingModel ? `, ${index.embedded} avec embeddings` : ' (recherche par mots-clés)'}`
+            }
+            onClick={() => openSettings('index')}
+          >
+            <Icon name={indexBusy ? 'loading' : 'database'} className={indexBusy ? 'codicon-modifier-spin' : undefined} /> {indexSummary(index)}
+          </button>
+        )}
         <span className="status-item" title="Erreurs et avertissements">
           <Icon name="error" /> {errors} <Icon name="warning" /> {warnings}
         </span>

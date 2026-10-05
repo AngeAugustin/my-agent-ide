@@ -2,7 +2,7 @@
 
 Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vous apportez vos propres clés API** (Anthropic, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, Ollama…).
 
-> État : **phase 5 — mode Agent**. L’indexation du code et les finitions arrivent dans les phases suivantes (voir la feuille de route).
+> État : **phase 6 — indexation du code**. Les finitions (Git, serveurs de langage, MCP, règles, installateurs) arrivent dans la dernière phase.
 
 ## Fonctionnalités actuelles
 
@@ -37,6 +37,11 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
   - l’agent ne peut ni sortir du dossier du projet ni toucher à `.git` ;
   - **points de restauration** : chaque demande mémorise l’état des fichiers avant modification ; vue de différences et annulation par fichier, ou « Restaurer ce point » pour tout annuler (l’agent en est informé au message suivant) ;
   - limites réglables (nombre d’étapes, délai des commandes), bouton « Arrêter » à tout moment.
+- **Indexation du code** (Paramètres › *Indexation du code*, indicateur dans la barre d’état) :
+  - index automatique du projet à l’ouverture, mis à jour quand les fichiers changent ; respecte `.gitignore` (via `git ls-files`) et les dossiers exclus ; découpage en extraits aux limites des déclarations ;
+  - **recherche par mots-clés locale** (BM25, aucun envoi réseau) et, si vous l’activez pour le projet, **recherche sémantique** par embeddings (Voyage AI — recommandé par Anthropic —, OpenAI, Gemini, Mistral, Ollama…), combinées par fusion de classements ;
+  - rien n’est envoyé au fournisseur d’embeddings sans votre accord explicite par projet (estimation des jetons affichée) ; changement de modèle = vecteurs recalculés ;
+  - utilisée par `@codebase` dans le chat, par l’outil `codebase_search` de l’agent et par le mode « sémantique » de la vue Recherche.
 - Interface entièrement **en français**.
 
 ## Prérequis
@@ -94,5 +99,5 @@ Sécurité : `contextIsolation` et `sandbox` sont activés, `nodeIntegration` es
 3. ✅ **Chat IA** (`Ctrl+L`) avec contexte `@`, application des modifications avec diff, et **édition en ligne** (`Ctrl+K`)
 4. ✅ **Autocomplétion IA** (Tab)
 5. ✅ **Mode Agent** : modifications multi-fichiers, exécution de commandes, points de restauration
-6. **Indexation du code** et recherche sémantique `@codebase`
+6. ✅ **Indexation du code** et recherche sémantique `@codebase`
 7. **Finitions** : Git, serveurs de langage (LSP), serveurs MCP, règles de projet, installateurs

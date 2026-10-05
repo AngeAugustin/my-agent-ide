@@ -18,6 +18,10 @@ export interface ProviderDefinition {
   local?: boolean
   /** Accepte `stream_options.include_usage` (compteur de jetons en streaming). */
   streamUsage?: boolean
+  /** Fournisseur d'embeddings uniquement (pas de conversation). */
+  embeddingsOnly?: boolean
+  /** Modèles connus d'avance (quand l'API ne permet pas de les lister). */
+  staticModels?: ModelInfo[]
 }
 
 export const BUILTIN_PROVIDERS: ProviderDefinition[] = [
@@ -114,6 +118,23 @@ export const BUILTIN_PROVIDERS: ProviderDefinition[] = [
     streamUsage: true
   },
   {
+    id: 'voyage',
+    name: 'Voyage AI (embeddings)',
+    kind: 'openai-compatible',
+    description: 'Embeddings spécialisés pour le code, recommandés par Anthropic.',
+    defaultBaseUrl: 'https://api.voyageai.com/v1',
+    baseUrlEditable: false,
+    requiresKey: true,
+    keyUrl: 'https://dashboard.voyageai.com/',
+    keyPlaceholder: 'pa-…',
+    embeddingsOnly: true,
+    staticModels: [
+      { id: 'voyage-code-3', name: 'Voyage Code 3', kind: 'embedding' },
+      { id: 'voyage-3.5', name: 'Voyage 3.5', kind: 'embedding' },
+      { id: 'voyage-3.5-lite', name: 'Voyage 3.5 Lite', kind: 'embedding' }
+    ]
+  },
+  {
     id: 'ollama',
     name: 'Ollama (local)',
     kind: 'openai-compatible',
@@ -149,6 +170,8 @@ export interface ModelInfo {
   name?: string
   contextWindow?: number
   maxOutput?: number
+  /** « embedding » : modèle de vectorisation (indexation du code) ; sinon modèle de conversation. */
+  kind?: 'chat' | 'embedding'
 }
 
 export interface ModelRef {
@@ -156,13 +179,18 @@ export interface ModelRef {
   modelId: string
 }
 
-export type ModelRole = 'chat' | 'edit' | 'autocomplete' | 'agent'
+export type ModelRole = 'chat' | 'edit' | 'autocomplete' | 'agent' | 'embeddings'
 
 export const MODEL_ROLES: Array<{ id: ModelRole; label: string; description: string }> = [
   { id: 'chat', label: 'Chat', description: 'Conversation dans le panneau latéral (Ctrl+L).' },
   { id: 'edit', label: 'Édition en ligne', description: 'Modifications demandées avec Ctrl+K.' },
   { id: 'autocomplete', label: 'Autocomplétion', description: 'Suggestions pendant la frappe : privilégiez un modèle rapide (Codestral, DeepSeek, Haiku, un modèle de code local…).' },
-  { id: 'agent', label: 'Agent', description: 'Tâches en plusieurs étapes sur plusieurs fichiers.' }
+  { id: 'agent', label: 'Agent', description: 'Tâches en plusieurs étapes sur plusieurs fichiers.' },
+  {
+    id: 'embeddings',
+    label: 'Embeddings (indexation)',
+    description: 'Recherche sémantique dans le code (@codebase). Optionnel : sans lui, la recherche reste locale par mots-clés.'
+  }
 ]
 
 export interface AiSettings {

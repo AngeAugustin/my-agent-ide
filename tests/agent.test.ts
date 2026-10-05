@@ -17,6 +17,7 @@ describe('validateToolInput', () => {
     expect(validateToolInput('read_file', { path: 3 })).toContain('Type invalide')
     expect(validateToolInput('read_file', { path: 'a', start_line: 1.5 })).toContain('integer')
     expect(validateToolInput('inconnu', {})).toContain('inconnu')
+    expect(validateToolInput('codebase_search', { query: 'auth' })).toBeNull()
     expect(validateToolInput('edit_file', 'texte')).toContain('objet')
   })
 })

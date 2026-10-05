@@ -157,6 +157,14 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         return { output: lines.length ? lines.join('\n') + more : 'Aucun résultat.', isError: false }
       }
 
+      case 'codebase_search': {
+        const limit = Math.min(Math.max(Number(input.limit ?? 8), 1), 20)
+        const hits = await window.api.index.search(String(input.query), limit)
+        if (hits.length === 0) return { output: 'Aucun extrait pertinent trouvé (l’index est peut-être en cours de construction).', isError: false }
+        const body = hits.map((h) => `--- ${h.path} (lignes ${h.startLine}-${h.endLine})\n${h.text}`).join('\n\n')
+        return { output: truncateOutput(body), isError: false }
+      }
+
       case 'find_files': {
         const pattern = String(input.pattern).trim()
         const files = (await getFileIndex()).map((f) => rel(ctx.root, f))
@@ -280,6 +288,8 @@ export function describeTool(call: ToolCall): { icon: string; label: string } {
       return { icon: 'search', label: `Recherche de « ${String(input.query ?? '')} »` }
     case 'find_files':
       return { icon: 'search', label: `Recherche de fichiers « ${String(input.pattern ?? '')} »` }
+    case 'codebase_search':
+      return { icon: 'database', label: `Recherche dans le projet : « ${String(input.query ?? '')} »` }
     case 'edit_file':
       return { icon: 'edit', label: `Modification de ${path}` }
     case 'write_file':

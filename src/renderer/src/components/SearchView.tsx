@@ -4,7 +4,9 @@ import { ask, notify, openFile, reportError, useIde } from '../store/ide'
 import { getActiveEditor } from '../lib/activeEditor'
 import * as models from '../lib/editorModels'
 import { fileIcon } from '../lib/fileIcons'
-import { basename, dirname, relative } from '../lib/paths'
+import { basename, dirname, join, relative } from '../lib/paths'
+import type { SearchHit } from '@shared/codeindex'
+import { useCodeIndex } from '../store/codeIndex'
 import { Icon } from './Icon'
 
 function Toggle({ active, onClick, icon, title }: { active: boolean; onClick: () => void; icon: string; title: string }) {
@@ -25,6 +27,7 @@ export function SearchView() {
   const workspace = useIde((s) => s.workspace)
   const focusNonce = useIde((s) => s.searchFocusNonce)
   const [query, setQuery] = useState('')
+  const [semantic, setSemantic] = useState(false)
   const [replace, setReplace] = useState('')
   const [showReplace, setShowReplace] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
@@ -47,7 +50,7 @@ export function SearchView() {
   }, [focusNonce])
 
   useEffect(() => {
-    if (!workspace || !query) {
+    if (!workspace || !query || semantic) {
       setResult(null)
       setError(null)
       return
@@ -75,7 +78,7 @@ export function SearchView() {
       }
     }, 250)
     return () => clearTimeout(timer)
-  }, [workspace, query, options])
+  }, [workspace, query, options, semantic])
 
   const rerun = () => setOptions((o) => ({ ...o }))
 
@@ -159,7 +162,12 @@ export function SearchView() {
               />
               <Toggle icon="case-sensitive" title="Respecter la casse" active={options.caseSensitive} onClick={() => setOptions((o) => ({ ...o, caseSensitive: !o.caseSensitive }))} />
               <Toggle icon="whole-word" title="Mot entier" active={options.wholeWord} onClick={() => setOptions((o) => ({ ...o, wholeWord: !o.wholeWord }))} />
-              <Toggle icon="regex" title="Expression régulière" active={options.regex} onClick={() => setOptions((o) => ({ ...o, regex: !o.regex }))} />
+              {!semantic && (
+                <>
+                  <Toggle icon="regex" title="Expression régulière" active={options.regex} onClick={() => setOptions((o) => ({ ...o, regex: !o.regex }))} />
+                </>
+              )}
+              <Toggle icon="sparkle" title="Recherche sémantique (par le sens, via l’index du projet)" active={semantic} onClick={() => setSemantic((v) => !v)} />
             </div>
             {showReplace && (
               <div className="input-with-toggles">
@@ -188,6 +196,10 @@ export function SearchView() {
         )}
       </div>
 
+      {semantic ? (
+        <SemanticResults query={query} root={workspace} />
+      ) : (
+      <>
       <div className="search-summary muted small">
         {error ? (
           <span className="error-text">{error}</span>
@@ -234,7 +246,76 @@ export function SearchView() {
           )
         })}
       </div>
+      </>
+      )}
     </div>
+  )
+}
+
+/** Résultats de la recherche par l'index (mots-clés + sens si les embeddings sont activés). */
+function SemanticResults({ query, root }: { query: string; root: string }) {
+  const [hits, setHits] = useState<SearchHit[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const status = useCodeIndex((s) => s.status)
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setHits(null)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await window.api.index.search(query, 20)
+        if (!cancelled) {
+          setHits(res)
+          setError(null)
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [query])
+
+  const mode = status?.embeddingsEnabled && status.embeddingModel ? 'mots-clés + sens' : 'mots-clés (activez les embeddings pour chercher par le sens)'
+  return (
+    <>
+      <div className="search-summary muted small">
+        {error ? <span className="error-text">{error}</span> : loading ? 'Recherche…' : hits ? `${hits.length} extrait(s) — ${mode}` : `Index : ${mode}`}
+      </div>
+      <div className="search-results">
+        {hits?.map((h, i) => {
+          const abs = join(root, h.path)
+          const icon = fileIcon(h.path)
+          return (
+            <div
+              key={i}
+              className="semantic-hit"
+              onClick={() => openFile(abs, { preview: true, line: h.startLine, column: 1 })}
+              onDoubleClick={() => openFile(abs, { preview: false, line: h.startLine, column: 1 })}
+              title={`${h.path}:${h.startLine}`}
+            >
+              <div className="semantic-hit-header">
+                <Icon name={icon.icon} color={icon.color} />
+                <span className="tree-label">{basename(h.path)}</span>
+                <span className="muted small path-hint">
+                  {dirname(h.path) === h.path ? '' : dirname(h.path)} · {h.startLine}-{h.endLine}
+                </span>
+              </div>
+              <pre className="semantic-hit-preview">{h.text.split('\n').slice(0, 4).join('\n')}</pre>
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }
 

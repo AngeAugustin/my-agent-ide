@@ -13,7 +13,11 @@ export const useAi = create<AiState>()(() => ({ loaded: false, providers: [], st
 
 /** Modèles proposés par défaut quand un fournisseur vient d'être configuré. */
 const DEFAULT_MODELS: Record<string, Partial<Record<ModelRole, string>>> = {
-  anthropic: { chat: 'claude-opus-5-5', edit: 'claude-opus-5-5', agent: 'claude-opus-5-5', autocomplete: 'claude-haiku-4-5' }
+  anthropic: { chat: 'claude-opus-5-5', edit: 'claude-opus-5-5', agent: 'claude-opus-5-5', autocomplete: 'claude-haiku-4-5' },
+  voyage: { embeddings: 'voyage-code-3' },
+  openai: { embeddings: 'text-embedding-3-small' },
+  gemini: { embeddings: 'gemini-embedding-001' },
+  mistral: { embeddings: 'codestral-embed' }
 }
 
 export async function loadAi(): Promise<void> {
@@ -25,9 +29,16 @@ export function providerName(id: string): string {
   return useAi.getState().providers.find((p) => p.id === id)?.name ?? id
 }
 
-/** Fournisseurs utilisables : clé présente (ou non requise) et liste de modèles connue. */
-export function readyProviders(): ProviderStatus[] {
-  return useAi.getState().providers.filter((p) => (p.hasKey || !p.requiresKey) && p.models.length > 0)
+/**
+ * Fournisseurs utilisables : clé présente (ou non requise), avec seulement les modèles
+ * du type demandé (conversation par défaut, ou embeddings).
+ */
+export function readyProviders(kind: 'chat' | 'embedding' = 'chat'): ProviderStatus[] {
+  return useAi
+    .getState()
+    .providers.filter((p) => p.hasKey || !p.requiresKey)
+    .map((p) => ({ ...p, models: p.models.filter((m) => (kind === 'embedding' ? m.kind === 'embedding' : m.kind !== 'embedding')) }))
+    .filter((p) => p.models.length > 0)
 }
 
 export function setModelForRole(role: ModelRole, ref: ModelRef | undefined): void {
@@ -35,7 +46,9 @@ export function setModelForRole(role: ModelRole, ref: ModelRef | undefined): voi
   const models = { ...ai.models }
   if (ref) models[role] = ref
   else delete models[role]
-  void updateSettings({ ai: { ...ai, models } })
+  void updateSettings({ ai: { ...ai, models } }).then(() => {
+    if (role === 'embeddings') void window.api.index.settingsChanged()
+  })
 }
 
 /** Après la configuration d'un fournisseur, remplit les rôles encore vides avec ses modèles par défaut. */
@@ -52,7 +65,7 @@ export function applyDefaultModels(providerId: string): void {
       changed = true
     }
   }
-  if (changed) void updateSettings({ ai: { ...ai, models } })
+  if (changed) void updateSettings({ ai: { ...ai, models } }).then(() => window.api.index.settingsChanged())
 }
 
 export function modelLabel(ref: ModelRef | undefined): string {

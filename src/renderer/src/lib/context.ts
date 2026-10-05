@@ -12,6 +12,7 @@ export type ContextItem =
   | { kind: 'problems' }
   | { kind: 'git' }
   | { kind: 'terminal' }
+  | { kind: 'codebase' }
   | { kind: 'image'; name: string; mediaType: string; data: string }
 
 export function contextKey(item: ContextItem): string {
@@ -47,13 +48,24 @@ export function contextLabel(item: ContextItem): string {
       return 'Modifications Git'
     case 'terminal':
       return 'Terminal'
+    case 'codebase':
+      return 'Codebase'
     case 'image':
       return item.name
   }
 }
 
 export function contextIcon(item: ContextItem): string {
-  return { file: 'file', folder: 'folder', selection: 'selection', problems: 'warning', git: 'git-compare', terminal: 'terminal', image: 'file-media' }[item.kind]
+  return {
+    file: 'file',
+    folder: 'folder',
+    selection: 'selection',
+    problems: 'warning',
+    git: 'git-compare',
+    terminal: 'terminal',
+    codebase: 'database',
+    image: 'file-media'
+  }[item.kind]
 }
 
 async function readText(path: string): Promise<string> {
@@ -66,7 +78,7 @@ const FOLDER_BUDGET = 80_000
 const FOLDER_MAX_FILE = 30_000
 
 /** Transforme un élément de contexte en texte pour le prompt (instantané au moment de l'envoi). */
-export async function resolveContext(item: ContextItem): Promise<ResolvedContext | null> {
+export async function resolveContext(item: ContextItem, question = ''): Promise<ResolvedContext | null> {
   switch (item.kind) {
     case 'file': {
       const content = await readText(item.path)
@@ -119,6 +131,14 @@ export async function resolveContext(item: ContextItem): Promise<ResolvedContext
     case 'terminal': {
       const text = activeTerminalText()
       return { label: 'Terminal', text: `<terminal>\n${text ?? 'Aucun terminal ouvert.'}\n</terminal>` }
+    }
+    case 'codebase': {
+      // Les extraits les plus pertinents pour la question, trouvés par l'index du projet.
+      const hits = await window.api.index.search(question, 12)
+      const body = hits.length
+        ? hits.map((h) => `<extrait fichier="${h.path}" lignes="${h.startLine}-${h.endLine}">\n${h.text}\n</extrait>`).join('\n\n')
+        : 'Aucun extrait pertinent trouvé dans l’index.'
+      return { label: 'Codebase', text: `<extraits_du_projet>\n${body}\n</extraits_du_projet>` }
     }
     case 'image':
       return null

@@ -102,12 +102,15 @@ export const geminiAdapter: ProviderAdapter = {
         nextPageToken?: string
       }
       for (const m of body.models ?? []) {
-        if (!m.supportedGenerationMethods?.includes('generateContent')) continue
+        const methods = m.supportedGenerationMethods ?? []
+        const kind = methods.includes('generateContent') ? 'chat' : methods.includes('embedContent') ? 'embedding' : null
+        if (!kind) continue
         models.push({
           id: m.name.replace(/^models\//, ''),
           name: m.displayName,
           contextWindow: m.inputTokenLimit,
-          maxOutput: m.outputTokenLimit
+          maxOutput: kind === 'chat' ? m.outputTokenLimit : undefined,
+          kind
         })
       }
       pageToken = body.nextPageToken ?? ''

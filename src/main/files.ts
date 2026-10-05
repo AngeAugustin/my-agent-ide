@@ -75,6 +75,7 @@ export function registerFileHandlers(
         if (!flushTimer) {
           flushTimer = setTimeout(() => {
             getContents()?.send('fs:changed', pending)
+            changeListeners.forEach((cb) => cb(root, pending))
             pending = []
             flushTimer = null
           }, 150)
@@ -88,6 +89,14 @@ export function registerFileHandlers(
       // La surveillance récursive n'est pas disponible partout ; on s'en passe.
     }
   })
+}
+
+const changeListeners = new Set<(root: string, events: FsChangeEvent[]) => void>()
+
+/** Permet à d'autres modules (index du code) de suivre les modifications du projet. */
+export function onWorkspaceChange(cb: (root: string, events: FsChangeEvent[]) => void): () => void {
+  changeListeners.add(cb)
+  return () => changeListeners.delete(cb)
 }
 
 export function stopWatching(): void {

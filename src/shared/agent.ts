@@ -32,6 +32,7 @@ export type ToolName =
   | 'delete_file'
   | 'run_command'
   | 'get_problems'
+  | 'codebase_search'
 
 export const AGENT_TOOLS: Array<ToolDefinition & { name: ToolName }> = [
   {
@@ -58,6 +59,19 @@ export const AGENT_TOOLS: Array<ToolDefinition & { name: ToolName }> = [
         end_line: { type: 'integer', description: 'Dernière ligne incluse (optionnelle).' }
       },
       required: ['path']
+    }
+  },
+  {
+    name: 'codebase_search',
+    description:
+      'Recherche dans l’index du projet les extraits de code les plus pertinents pour une question en langage naturel (ex. « où est validé le formulaire de connexion »). Utile pour trouver où se trouve une fonctionnalité ; pour un identifiant précis, préfère search_text.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Question ou description de ce que tu cherches.' },
+        limit: { type: 'integer', description: 'Nombre d’extraits (8 par défaut, 20 au plus).' }
+      },
+      required: ['query']
     }
   },
   {
@@ -247,7 +261,7 @@ export function agentSystemPrompt(env: { os: string; workspace: string; date: st
     `Système : ${env.os}. Date : ${env.date}.`,
     '',
     'Méthode :',
-    '- Explore d’abord ce qui est nécessaire (list_dir, find_files, search_text, read_file) ; ne devine pas le contenu d’un fichier.',
+    '- Explore d’abord ce qui est nécessaire (codebase_search pour localiser une fonctionnalité, list_dir, find_files, search_text, read_file) ; ne devine pas le contenu d’un fichier.',
     '- Modifie avec edit_file (remplacement exact) ; utilise write_file pour créer un fichier ou le réécrire entièrement.',
     '- Vérifie ton travail quand c’est possible (tests, compilation, linter) avec run_command, puis corrige les erreurs.',
     '- Les chemins sont relatifs à la racine du projet. Ne touche qu’aux fichiers utiles à la demande.',

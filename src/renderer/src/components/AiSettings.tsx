@@ -13,8 +13,9 @@ function refKey(ref?: ModelRef): string {
 
 function ModelPicker({ role }: { role: ModelRole }) {
   const current = useIde((s) => s.settings.ai.models[role])
-  const providers = useAi((s) => s.providers)
-  const ready = providers.filter((p) => (p.hasKey || !p.requiresKey) && p.models.length > 0)
+  useAi((s) => s.providers)
+  const ready = readyProviders(role === 'embeddings' ? 'embedding' : 'chat')
+  const providers = useAi.getState().providers
   const inLists = !!current && ready.some((p) => p.id === current.providerId && p.models.some((m) => m.id === current.modelId))
   const [custom, setCustom] = useState(!!current && !inLists)
   const [customProvider, setCustomProvider] = useState(current?.providerId ?? ready[0]?.id ?? '')
@@ -90,6 +91,13 @@ function ModelTest({ role }: { role: ModelRole }) {
     setOutput('')
     setStatus({ kind: 'running' })
     const started = performance.now()
+    if (role === 'embeddings') {
+      const res = await window.api.ai.embedTest(ref.providerId, ref.modelId)
+      const ms = Math.round(performance.now() - started)
+      setStatus(res.ok ? { kind: 'ok', detail: `Vecteurs de ${res.dims} dimensions · ${(ms / 1000).toFixed(1).replace('.', ',')} s` } : { kind: 'error', detail: res.message })
+      void loadAi()
+      return
+    }
     const h = streamChat(
       {
         providerId: ref.providerId,

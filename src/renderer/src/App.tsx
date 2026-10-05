@@ -8,6 +8,7 @@ import {
   useIde
 } from './store/ide'
 import { loadAi } from './store/ai'
+import { initCodeIndex } from './store/codeIndex'
 import { commands, runCommand } from './lib/commands'
 import { onDirtyChange } from './lib/editorModels'
 import { matchesKeybinding } from './lib/keybindings'
@@ -68,7 +69,12 @@ export function App() {
   useWindowTitle()
 
   useEffect(() => {
-    void initialize().then(() => loadAi()).catch(() => undefined)
+    void initialize()
+      .then(() => {
+        initCodeIndex()
+        return loadAi()
+      })
+      .catch(() => undefined)
     const offs = [
       onDirtyChange((path, dirty) => setDirty(path, dirty)),
       window.api.fs.onChange(handleFsChanges),

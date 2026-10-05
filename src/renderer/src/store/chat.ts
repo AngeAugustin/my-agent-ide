@@ -306,7 +306,7 @@ export async function sendMessage(text: string): Promise<void> {
   const errors: string[] = []
   for (const item of items.filter((i) => i.kind !== 'image')) {
     try {
-      const r = await resolveContext(item)
+      const r = await resolveContext(item, question)
       if (r) {
         resolved.push(r)
         if (r.truncated) truncated.push(r.label)

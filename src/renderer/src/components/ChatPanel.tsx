@@ -45,6 +45,7 @@ interface MentionOption {
 }
 
 const SPECIAL: Array<{ words: string; label: string; detail: string; icon: string; item: ContextItem }> = [
+  { words: 'codebase projet code recherche semantique index', label: 'Codebase', detail: 'Extraits du projet les plus pertinents pour la question', icon: 'database', item: { kind: 'codebase' } },
   { words: 'problemes erreurs diagnostics problems', label: 'Problèmes', detail: 'Erreurs et avertissements de l’éditeur', icon: 'warning', item: { kind: 'problems' } },
   { words: 'git diff modifications changements', label: 'Modifications Git', detail: 'Diff par rapport au dernier commit', icon: 'git-compare', item: { kind: 'git' } },
   { words: 'terminal sortie console', label: 'Terminal', detail: 'Dernières lignes du terminal actif', icon: 'terminal', item: { kind: 'terminal' } }

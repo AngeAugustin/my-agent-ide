@@ -2648,3 +2648,111 @@ textarea.allowlist {
   padding: 6px;
   resize: vertical;
 }
+
+/* --- Indexation du code ------------------------------------------------------- */
+
+.index-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.index-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.index-row .muted {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-active);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.index-stats {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.index-stats dt {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.index-stats dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.index-try {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.index-results {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  user-select: text;
+}
+
+.index-results li {
+  margin: 3px 0;
+}
+
+.callout p {
+  margin: 0 0 8px;
+}
+
+.link-button.inline {
+  display: inline;
+  padding: 0;
+}
+
+.semantic-hit {
+  padding: 4px 10px 6px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.semantic-hit:hover {
+  background: var(--bg-hover);
+}
+
+.semantic-hit-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.semantic-hit-preview {
+  margin: 3px 0 0 21px;
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--fg-muted);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

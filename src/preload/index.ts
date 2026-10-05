@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { ChatEvent } from '@shared/ai'
+import type { IndexStatus } from '@shared/codeindex'
 import type { FsChangeEvent, IdeApi } from '@shared/types'
 
 function on<T extends unknown[]>(channel: string, cb: (...args: T) => void): () => void {
@@ -55,6 +56,7 @@ const api: IdeApi = {
     chat: (requestId, request) => ipcRenderer.invoke('ai:chat', requestId, request),
     abort: (requestId) => ipcRenderer.send('ai:abort', requestId),
     onEvent: (cb) => on<[string, ChatEvent]>('ai:event', cb),
+    embedTest: (providerId, model) => ipcRenderer.invoke('ai:embedTest', providerId, model),
     complete: (requestId, request) => ipcRenderer.invoke('ai:complete', requestId, request)
   },
   chats: {
@@ -63,6 +65,16 @@ const api: IdeApi = {
   },
   git: {
     diff: (cwd) => ipcRenderer.invoke('git:diff', cwd)
+  },
+  index: {
+    open: (root) => ipcRenderer.invoke('index:open', root),
+    status: () => ipcRenderer.invoke('index:status'),
+    rebuild: () => ipcRenderer.invoke('index:rebuild'),
+    enableEmbeddings: (enabled) => ipcRenderer.invoke('index:enableEmbeddings', enabled),
+    clear: () => ipcRenderer.invoke('index:clear'),
+    search: (query, limit) => ipcRenderer.invoke('index:search', query, limit),
+    settingsChanged: () => ipcRenderer.invoke('index:settingsChanged'),
+    onStatus: (cb) => on<[IndexStatus]>('index:status', cb)
   },
   agent: {
     run: (id, command, cwd, timeoutSeconds) => ipcRenderer.invoke('agent:run', id, command, cwd, timeoutSeconds),

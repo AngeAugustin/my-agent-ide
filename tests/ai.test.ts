@@ -265,7 +265,7 @@ describe('adaptateur compatible OpenAI', () => {
       contentType: 'application/json',
       body: JSON.stringify({ object: 'list', data: [{ id: 'gpt-b' }, { id: 'text-embedding-3-small' }, { id: 'gpt-a' }, { id: 'whisper-1' }] })
     }))
-    expect((await openAiAdapter.listModels(config('openai', fn))).map((m) => m.id)).toEqual(['gpt-a', 'gpt-b'])
+    expect((await openAiAdapter.listModels(config('openai', fn))).map((m) => `${m.id}:${m.kind}`)).toEqual(['gpt-a:chat', 'gpt-b:chat', 'text-embedding-3-small:embedding'])
   })
 })
 

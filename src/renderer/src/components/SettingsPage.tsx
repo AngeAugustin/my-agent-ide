@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
 import { updateSettings, useIde } from '../store/ide'
 import { AiSettingsSection } from './AiSettings'
+import { IndexSettings } from './IndexSettings'
 import { commands } from '../lib/commands'
 import { formatKeybinding } from '../lib/keybindings'
 
@@ -41,7 +42,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai'
+type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai' | 'index'
 
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'Général' },
@@ -49,6 +50,7 @@ const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'terminal', label: 'Terminal' },
   { id: 'files', label: 'Fichiers' },
   { id: 'ai', label: 'Modèles et clés API' },
+  { id: 'index', label: 'Indexation du code' },
   { id: 'shortcuts', label: 'Raccourcis clavier' }
 ]
 
@@ -162,6 +164,7 @@ export function SettingsPage() {
         )}
 
         {section === 'ai' && <AiSettingsSection />}
+        {section === 'index' && <IndexSettings />}
 
         {section === 'shortcuts' && (
           <>
