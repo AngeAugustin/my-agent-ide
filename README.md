@@ -2,7 +2,7 @@
 
 Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vous apportez vos propres clés API** (Anthropic, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, Ollama…).
 
-> État : **phase 4 — autocomplétion IA**. Le mode Agent arrive dans la phase suivante (voir la feuille de route).
+> État : **phase 5 — mode Agent**. L’indexation du code et les finitions arrivent dans les phases suivantes (voir la feuille de route).
 
 ## Fonctionnalités actuelles
 
@@ -31,6 +31,12 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
 - **Autocomplétion IA** (texte grisé pendant la frappe) : `Tab` pour accepter, `Ctrl+→` pour accepter mot par mot, `Échap` pour ignorer, `Alt+\` pour en demander une ; activation et délai réglables, indicateur « Tab » dans la barre d’état (clic pour activer/désactiver).
   - point d’API **FIM** natif (remplissage entre le code avant et après le curseur) pour Codestral (Mistral), DeepSeek, Ollama et LM Studio ; sinon, n’importe quel modèle de conversation (par défaut Claude Haiku 4.5 avec Anthropic) ;
   - suggestions nettoyées (pas de Markdown, pas de répétition du code existant), mises en cache : taper le début d’une suggestion ne relance pas de requête, même quand l’éditeur ferme automatiquement une parenthèse.
+- **Mode Agent** (`Ctrl+I`, ou bascule « Agent » dans le chat) : l’agent réalise une tâche en plusieurs étapes avec des outils — explorer (`list_dir`, `find_files`, `search_text`, `read_file`), modifier (`edit_file` par remplacement exact, `write_file`, `delete_file`), exécuter (`run_command`) et lire les problèmes de l’éditeur.
+  - chaque action s’affiche en direct (statut, sortie des commandes, `+/−` lignes) ;
+  - **commandes soumises à votre accord** (« Exécuter », « Refuser », « Toujours autoriser »), sauf celles de la liste autorisée — une commande avec enchaînement (`;`, `&&`, `|`) ou redirection demande toujours l’accord ; option « tout exécuter » à vos risques ;
+  - l’agent ne peut ni sortir du dossier du projet ni toucher à `.git` ;
+  - **points de restauration** : chaque demande mémorise l’état des fichiers avant modification ; vue de différences et annulation par fichier, ou « Restaurer ce point » pour tout annuler (l’agent en est informé au message suivant) ;
+  - limites réglables (nombre d’étapes, délai des commandes), bouton « Arrêter » à tout moment.
 - Interface entièrement **en français**.
 
 ## Prérequis
@@ -87,6 +93,6 @@ Sécurité : `contextIsolation` et `sandbox` sont activés, `nodeIntegration` es
 2. ✅ **Clés API (BYOK)** : gestionnaire de clés chiffrées, couche multi-fournisseurs, choix des modèles
 3. ✅ **Chat IA** (`Ctrl+L`) avec contexte `@`, application des modifications avec diff, et **édition en ligne** (`Ctrl+K`)
 4. ✅ **Autocomplétion IA** (Tab)
-5. **Mode Agent** : modifications multi-fichiers, exécution de commandes, points de restauration
+5. ✅ **Mode Agent** : modifications multi-fichiers, exécution de commandes, points de restauration
 6. **Indexation du code** et recherche sémantique `@codebase`
 7. **Finitions** : Git, serveurs de langage (LSP), serveurs MCP, règles de projet, installateurs

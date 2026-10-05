@@ -13,6 +13,7 @@ import {
   setChatWidth,
   setConversationModel,
   setIncludeActiveFile,
+  setMode,
   showHistory,
   stopStreaming,
   toggleChat,
@@ -28,6 +29,7 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { basename, dirname, isInside, relative } from '../lib/paths'
 import { formatTokens } from '../lib/ai'
 import { Markdown } from './Markdown'
+import { AgentAssistantTurn, ChangedFiles } from './AgentTurn'
 import { Icon } from './Icon'
 
 // ---------------------------------------------------------------------------
@@ -183,15 +185,28 @@ function AssistantMessage({ turn, last }: { turn: AssistantTurn; last: boolean }
 }
 
 function EmptyState() {
-  const hasModel = useIde((s) => !!s.settings.ai.models.chat)
+  const mode = useChat((s) => s.mode)
+  const hasModel = useIde((s) => !!(mode === 'agent' ? s.settings.ai.models.agent ?? s.settings.ai.models.chat : s.settings.ai.models.chat))
   return (
     <div className="chat-empty">
-      <Icon name="sparkle" />
-      <h3>Posez une question sur votre code</h3>
-      <p className="muted">
-        Tapez <kbd>@</kbd> pour joindre des fichiers, des dossiers, les problèmes, le diff Git ou le terminal. Sélectionnez du code puis <kbd>Ctrl+L</kbd>
-        pour l’ajouter à la conversation.
-      </p>
+      <Icon name={mode === 'agent' ? 'hubot' : 'sparkle'} />
+      {mode === 'agent' ? (
+        <>
+          <h3>Confiez une tâche à l’agent</h3>
+          <p className="muted">
+            L’agent explore le projet, modifie les fichiers et lance des commandes (avec votre accord) jusqu’à terminer la tâche. Chaque demande crée un
+            point de restauration pour tout annuler.
+          </p>
+        </>
+      ) : (
+        <>
+          <h3>Posez une question sur votre code</h3>
+          <p className="muted">
+            Tapez <kbd>@</kbd> pour joindre des fichiers, des dossiers, les problèmes, le diff Git ou le terminal. Sélectionnez du code puis{' '}
+            <kbd>Ctrl+L</kbd> pour l’ajouter à la conversation.
+          </p>
+        </>
+      )}
       {!hasModel && (
         <button className="btn primary" onClick={() => openSettings('ai')}>
           Configurer un modèle
@@ -206,7 +221,10 @@ function EmptyState() {
 // ---------------------------------------------------------------------------
 
 function ModelSelect({ conv }: { conv?: Conversation }) {
-  const fallback = useIde((s) => s.settings.ai.models.chat)
+  const mode = conv?.mode ?? useChat.getState().mode
+  const role = mode === 'agent' ? 'agent' : 'chat'
+  useChat((s) => s.mode)
+  const fallback = useIde((s) => (role === 'agent' ? s.settings.ai.models.agent ?? s.settings.ai.models.chat : s.settings.ai.models.chat))
   useAi((s) => s.providers)
   const current = conv?.model ?? fallback
   const providers = readyProviders()
@@ -223,7 +241,7 @@ function ModelSelect({ conv }: { conv?: Conversation }) {
         if (conv) setConversationModel(ref)
         else {
           const ai = useIde.getState().settings.ai
-          void updateSettings({ ai: { ...ai, models: { ...ai.models, chat: ref } } })
+          void updateSettings({ ai: { ...ai, models: { ...ai.models, [role]: ref } } })
         }
       }}
     >
@@ -249,6 +267,7 @@ function ChatInput({ conv }: { conv?: Conversation }) {
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLTextAreaElement>(null)
   const streaming = useChat((s) => !!s.streamingId)
+  const mode = useChat((s) => s.mode)
   const focusNonce = useChat((s) => s.focusNonce)
   const draft = useChat((s) => s.draftContexts)
   const includeActive = useChat((s) => s.includeActiveFile)
@@ -410,7 +429,11 @@ function ChatInput({ conv }: { conv?: Conversation }) {
         ref={ref}
         value={text}
         rows={2}
-        placeholder="Posez une question, @ pour joindre du contexte…"
+        placeholder={
+          (conv?.mode ?? mode) === 'agent'
+            ? 'Décrivez la tâche à réaliser (ex. « ajoute des tests pour utils.ts et fais-les passer »)…'
+            : 'Posez une question, @ pour joindre du contexte…'
+        }
         spellCheck={false}
         onChange={(e) => {
           setText(e.target.value)
@@ -427,6 +450,20 @@ function ChatInput({ conv }: { conv?: Conversation }) {
         </div>
       )}
       <div className="chat-input-footer">
+        {!conv || conv.turns.length === 0 ? (
+          <div className="mode-toggle" role="radiogroup" aria-label="Mode">
+            <button role="radio" aria-checked={mode === 'chat'} className={mode === 'chat' ? 'active' : ''} onClick={() => setMode('chat')} title="Questions et réponses">
+              <Icon name="comment" /> Chat
+            </button>
+            <button role="radio" aria-checked={mode === 'agent'} className={mode === 'agent' ? 'active' : ''} onClick={() => setMode('agent')} title="L’agent modifie le projet et lance des commandes">
+              <Icon name="hubot" /> Agent
+            </button>
+          </div>
+        ) : (
+          <span className="mode-badge" title={conv.mode === 'agent' ? 'Conversation en mode Agent' : 'Conversation en mode Chat'}>
+            <Icon name={conv.mode === 'agent' ? 'hubot' : 'comment'} /> {conv.mode === 'agent' ? 'Agent' : 'Chat'}
+          </span>
+        )}
         <ModelSelect conv={conv} />
         <span className="muted small">{pendingContexts().length > 0 ? `${pendingContexts().length} élément(s) joint(s)` : ''}</span>
         {streaming ? (
@@ -537,9 +574,17 @@ export function ChatPanel() {
             }}
           >
             {turns.length === 0 && <EmptyState />}
-            {turns.map((t) =>
-              t.role === 'user' ? <UserMessage key={t.id} turn={t} /> : <AssistantMessage key={t.id} turn={t} last={t === lastAssistant} />
-            )}
+            {turns.map((t, i) => {
+              if (t.role === 'user') return <UserMessage key={t.id} turn={t} />
+              if (!t.steps) return <AssistantMessage key={t.id} turn={t} last={t === lastAssistant} />
+              const userTurn = turns[i - 1]?.role === 'user' ? (turns[i - 1] as UserTurn) : undefined
+              return (
+                <div key={t.id} className="agent-turn">
+                  <AgentAssistantTurn convId={conv!.id} turn={t} last={t === lastAssistant} />
+                  {userTurn && t.status !== 'streaming' && <ChangedFiles convId={conv!.id} turn={userTurn} />}
+                </div>
+              )
+            })}
           </div>
           <ChatInput conv={conv} />
         </>

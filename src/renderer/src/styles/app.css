@@ -2406,3 +2406,245 @@ button.status-item:hover {
 .status-item.status-warning {
   color: var(--warning);
 }
+
+/* --- Agent ----------------------------------------------------------------------- */
+
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mode-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.mode-toggle button .codicon,
+.mode-badge .codicon {
+  font-size: 13px;
+}
+
+.mode-toggle button.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+}
+
+.agent-step + .agent-step {
+  margin-top: 8px;
+}
+
+.tool-run {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 6px 0;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.tool-run.approval {
+  border-color: var(--warning);
+}
+
+.tool-run.error,
+.tool-run.denied {
+  border-color: rgba(241, 76, 76, 0.5);
+}
+
+.tool-run-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  min-height: 26px;
+}
+
+.tool-run-header[role='button'] {
+  cursor: pointer;
+}
+
+.tool-run-header[role='button']:hover {
+  background: var(--bg-hover);
+}
+
+.tool-run-header .codicon {
+  font-size: 14px;
+}
+
+.tool-status.ok {
+  color: var(--success);
+}
+
+.tool-status.error {
+  color: var(--danger);
+}
+
+.tool-status.warning {
+  color: var(--warning);
+}
+
+.tool-status.running {
+  color: var(--accent);
+}
+
+.tool-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-label.mono,
+.approval-command,
+.tool-output {
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+.tool-output {
+  margin: 0;
+  padding: 6px 10px;
+  max-height: 260px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-input);
+  user-select: text;
+}
+
+.tool-output.live {
+  max-height: 110px;
+  color: var(--fg-muted);
+}
+
+.approval {
+  border-top: 1px solid var(--border);
+  padding: 8px 10px;
+  background: rgba(204, 167, 0, 0.08);
+}
+
+.approval-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.approval-text code {
+  font-size: 11px;
+}
+
+.approval-command {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.approval-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.approval-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+}
+
+.changed-files {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  padding: 4px 0;
+}
+
+.changed-files.restored {
+  opacity: 0.6;
+}
+
+.changed-files-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.changed-files-header span {
+  flex: 1;
+}
+
+.changed-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px 1px 14px;
+  font-size: 12px;
+}
+
+.changed-file:hover {
+  background: var(--bg-hover);
+}
+
+.changed-file .codicon {
+  font-size: 14px;
+}
+
+.changed-file .added {
+  color: var(--success);
+}
+
+.changed-file .modified {
+  color: var(--warning);
+}
+
+.changed-file-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+textarea.allowlist {
+  width: 320px;
+  max-width: 100%;
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px;
+  resize: vertical;
+}

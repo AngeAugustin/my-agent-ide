@@ -3,6 +3,7 @@ import { monaco, languageForPath } from '../lib/monaco'
 import { diffLines, diffStats } from '../lib/diff'
 import { acceptReview, closeReview, useReview } from '../store/review'
 import { useIde } from '../store/ide'
+import { revertFile } from '../store/agent'
 import { relative } from '../lib/paths'
 import { Icon } from './Icon'
 
@@ -26,7 +27,7 @@ export function DiffReview({ id }: { id: string }) {
     const editor = monaco.editor.createDiffEditor(containerRef.current!, {
       automaticLayout: true,
       originalEditable: false,
-      readOnly: false,
+      readOnly: !!review.applied,
       renderSideBySide: true,
       ignoreTrimWhitespace: false,
       fontSize: useIde.getState().settings.editorFontSize,
@@ -80,6 +81,7 @@ export function DiffReview({ id }: { id: string }) {
         <span className="diff-path" title={review.path}>
           {rel}
           {review.isNew && <span className="status-badge ok">nouveau fichier</span>}
+          {review.applied && <span className="status-badge">modifié par l’agent</span>}
         </span>
         <span className="diff-stats">
           <span className="added">+{stats.added}</span> <span className="removed">−{stats.removed}</span>
@@ -94,16 +96,36 @@ export function DiffReview({ id }: { id: string }) {
           <button className="icon-button" title={sideBySide ? 'Vue unifiée' : 'Vue côte à côte'} onClick={() => setSideBySide((v) => !v)}>
             <Icon name={sideBySide ? 'split-vertical' : 'split-horizontal'} />
           </button>
-          <button className="btn danger" onClick={() => closeReview(id)}>
-            Rejeter
-          </button>
-          <button
-            className="btn primary"
-            disabled={review.status === 'merging'}
-            onClick={() => acceptReview(id, modifiedRef.current?.getValue() ?? review.proposed)}
-          >
-            <Icon name="check" /> Accepter
-          </button>
+          {review.applied ? (
+            <>
+              <button
+                className="btn danger"
+                title="Remettre le fichier dans son état d’avant la modification de l’agent"
+                onClick={async () => {
+                  await revertFile(review.applied!.convId, review.path, review.applied!.original)
+                  await closeReview(id)
+                }}
+              >
+                <Icon name="discard" /> Annuler la modification
+              </button>
+              <button className="btn primary" onClick={() => closeReview(id)}>
+                <Icon name="check" /> Garder
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn danger" onClick={() => closeReview(id)}>
+                Rejeter
+              </button>
+              <button
+                className="btn primary"
+                disabled={review.status === 'merging'}
+                onClick={() => acceptReview(id, modifiedRef.current?.getValue() ?? review.proposed)}
+              >
+                <Icon name="check" /> Accepter
+              </button>
+            </>
+          )}
         </div>
       </div>
       <div className="diff-container" ref={containerRef} />

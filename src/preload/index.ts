@@ -64,6 +64,11 @@ const api: IdeApi = {
   git: {
     diff: (cwd) => ipcRenderer.invoke('git:diff', cwd)
   },
+  agent: {
+    run: (id, command, cwd, timeoutSeconds) => ipcRenderer.invoke('agent:run', id, command, cwd, timeoutSeconds),
+    kill: (id) => ipcRenderer.send('agent:kill', id),
+    onOutput: (cb) => on<[string, string]>('agent:output', cb)
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (value) => ipcRenderer.invoke('settings:set', value)

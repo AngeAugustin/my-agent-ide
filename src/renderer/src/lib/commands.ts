@@ -27,7 +27,7 @@ import { killTerminal, newTerminal, toggleTerminalPanel } from '../store/termina
 import { getActiveEditor } from './activeEditor'
 import { startInlineEdit } from './inlineEdit'
 import { toggleAutocomplete } from './autocomplete'
-import { chatWithSelection, newConversation, toggleChat } from '../store/chat'
+import { chatWithSelection, newConversation, setMode, toggleChat } from '../store/chat'
 
 export interface Command {
   id: string
@@ -125,6 +125,16 @@ export const commands: Command[] = [
   { id: 'chat.toggle', title: 'Ouvrir/fermer le chat (ajoute la sélection)', category: 'IA', keybinding: 'Mod+L', run: () => chatWithSelection(true) },
   { id: 'chat.addSelection', title: 'Ajouter la sélection au chat', category: 'IA', keybinding: 'Mod+Shift+L', when: () => !!getActiveEditor()?.hasTextFocus(), run: () => chatWithSelection(false) },
   { id: 'chat.new', title: 'Nouvelle conversation', category: 'IA', run: newConversation },
+  {
+    id: 'agent.new',
+    title: 'Nouvelle tâche pour l’agent',
+    category: 'IA',
+    keybinding: 'Mod+I',
+    run: () => {
+      newConversation()
+      setMode('agent')
+    }
+  },
   { id: 'chat.close', title: 'Fermer le chat', category: 'IA', run: () => toggleChat(false) },
   {
     id: 'editor.inlineEdit',

@@ -485,6 +485,8 @@ export function AiSettingsSection() {
         </div>
       )}
 
+      <AgentSettingsSection />
+
       <h3>Fournisseurs</h3>
       <div className="provider-list">
         {providers.map((p) => (
@@ -499,5 +501,78 @@ export function AiSettingsSection() {
       <p className="muted small">Jetons comptés par l’IDE depuis la dernière remise à zéro. Le coût réel dépend des tarifs de chaque fournisseur.</p>
       <UsageTable />
     </div>
+  )
+}
+
+function AgentSettingsSection() {
+  const agent = useIde((s) => s.settings.agent)
+  const [allowText, setAllowText] = useState(agent.allowlist.join('\n'))
+  useEffect(() => setAllowText(agent.allowlist.join('\n')), [agent.allowlist])
+  const set = (patch: Partial<typeof agent>) => void updateSettings({ agent: { ...agent, ...patch } })
+  return (
+    <>
+      <h3>Agent</h3>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Exécution des commandes</div>
+          <div className="setting-description">
+            Les modifications de fichiers sont appliquées directement (avec point de restauration) ; les commandes demandent votre accord, sauf celles
+            de la liste ci-dessous.
+          </div>
+        </div>
+        <div className="setting-control">
+          <select value={agent.commandPolicy} onChange={(e) => set({ commandPolicy: e.target.value as typeof agent.commandPolicy })}>
+            <option value="allowlist">Demander, sauf commandes autorisées</option>
+            <option value="always">Tout exécuter sans demander (risqué)</option>
+          </select>
+        </div>
+      </div>
+      {agent.commandPolicy === 'allowlist' && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-title">Commandes autorisées</div>
+            <div className="setting-description">
+              Une par ligne. Une commande passe sans confirmation si elle commence par l’une d’elles et ne contient ni enchaînement (« ; », « && »,
+              « | ») ni redirection. Laissez vide pour toujours demander.
+            </div>
+          </div>
+          <div className="setting-control">
+            <textarea
+              className="allowlist"
+              rows={6}
+              spellCheck={false}
+              value={allowText}
+              onChange={(e) => setAllowText(e.target.value)}
+              onBlur={() =>
+                set({
+                  allowlist: allowText
+                    .split('\n')
+                    .map((l) => l.trim())
+                    .filter(Boolean)
+                })
+              }
+            />
+          </div>
+        </div>
+      )}
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Nombre maximal d’étapes</div>
+          <div className="setting-description">Appels au modèle par demande, avant que l’agent ne s’arrête et vous rende la main.</div>
+        </div>
+        <div className="setting-control">
+          <input type="number" min={1} max={200} value={agent.maxSteps} onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= 200) set({ maxSteps: v }) }} />
+        </div>
+      </div>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Délai maximal d’une commande</div>
+          <div className="setting-description">En secondes ; la commande est arrêtée au-delà.</div>
+        </div>
+        <div className="setting-control">
+          <input type="number" min={5} max={3600} value={agent.commandTimeout} onChange={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 3600) set({ commandTimeout: v }) }} />
+        </div>
+      </div>
+    </>
   )
 }

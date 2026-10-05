@@ -7,6 +7,7 @@ import {
   type Settings
 } from '@shared/types'
 import { abortAllChats, registerAiHandlers } from './ai/ipc'
+import { killAllAgentCommands, registerAgentHandlers } from './agentCommands'
 import { registerChatHandlers } from './chats'
 import { registerFileHandlers, stopWatching } from './files'
 import { buildMenu } from './menu'
@@ -117,6 +118,7 @@ app.whenReady().then(() => {
   registerTerminalHandlers(getContents, async () => (await settingsStore.get()).terminalShell)
   registerAiHandlers(getContents, () => settingsStore.get())
   registerChatHandlers()
+  registerAgentHandlers(getContents)
   Menu.setApplicationMenu(buildMenu(getContents))
   createWindow()
 
@@ -127,6 +129,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   abortAllChats()
+  killAllAgentCommands()
   killAllTerminals()
   stopWatching()
   if (process.platform !== 'darwin') app.quit()

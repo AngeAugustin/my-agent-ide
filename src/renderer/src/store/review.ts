@@ -16,6 +16,8 @@ export interface Review {
   isNew: boolean
   status: 'merging' | 'ready' | 'error'
   error?: string
+  /** Modification déjà appliquée par l'agent : la vue permet seulement de la consulter ou de l'annuler. */
+  applied?: { convId: string; original: string | null }
 }
 
 interface ReviewState {
@@ -145,4 +147,28 @@ function disposeReview(id: string): void {
     delete reviews[id]
     return { reviews }
   })
+}
+
+/** Affiche ce que l'agent a modifié dans un fichier (état d'avant le tour → état actuel). */
+export async function openAgentDiff(convId: string, path: string, original: string | null): Promise<void> {
+  let current = ''
+  try {
+    const entry = models.getEntry(path)
+    current = entry ? entry.model.getValue() : (await window.api.fs.exists(path)) ? await window.api.fs.readFile(path) : ''
+  } catch (err) {
+    reportError('Lecture impossible', err)
+    return
+  }
+  const id = reviewTabId(path)
+  useReview.setState((s) => ({
+    reviews: {
+      ...s.reviews,
+      [id]: { id, path, original: original ?? '', proposed: current, isNew: original === null, status: 'ready', applied: { convId, original } }
+    }
+  }))
+  const tabs = useIde.getState().tabs
+  if (!tabs.some((t) => t.id === id)) {
+    useIde.setState({ tabs: [...tabs, { id, kind: 'diff', title: `${basename(path)} (agent)`, dirty: false, preview: false }] })
+  }
+  useIde.setState({ activeId: id })
 }

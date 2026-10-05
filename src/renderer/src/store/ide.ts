@@ -177,7 +177,12 @@ export function ask(title: string, message: string | undefined, buttons: DialogB
 export async function initialize(): Promise<void> {
   const [settings, session] = await Promise.all([window.api.settings.get(), window.api.session.get()])
   set({
-    settings: { ...DEFAULT_SETTINGS, ...settings, ai: { ...DEFAULT_SETTINGS.ai, ...settings.ai } },
+    settings: {
+      ...DEFAULT_SETTINGS,
+      ...settings,
+      ai: { ...DEFAULT_SETTINGS.ai, ...settings.ai },
+      agent: { ...DEFAULT_SETTINGS.agent, ...settings.agent }
+    },
     recentWorkspaces: session.recentWorkspaces ?? []
   })
 

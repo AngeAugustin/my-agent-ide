@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 import type { ChatMessage, ContentPart, ModelRef } from '@shared/ai'
+import { agentSystemPrompt } from '@shared/agent'
+import { agentStepMessages, type AgentStep } from '../lib/agentHistory'
+export { agentStepMessages }
+export type { AgentStep, AgentToolRun, ToolRunStatus } from '../lib/agentHistory'
 import { streamChat, type ChatHandle } from '../lib/ai'
 import { contextKey, resolveContext, type ContextItem } from '../lib/context'
 import { getActiveEditor } from '../lib/activeEditor'
@@ -18,6 +22,8 @@ export interface UserTurn {
   sent: string
   images: Array<{ name: string; mediaType: string; data: string }>
   truncated: string[]
+  /** Mode Agent : état des fichiers avant les modifications de ce tour (null = fichier inexistant). */
+  checkpoint?: { files: Record<string, string | null>; restored?: boolean }
 }
 
 export interface AssistantTurn {
@@ -31,6 +37,8 @@ export interface AssistantTurn {
   notices: string[]
   providerData?: ChatMessage['providerData']
   usage?: { inputTokens: number; outputTokens: number }
+  /** Mode Agent : étapes successives (le texte final est celui de la dernière étape). */
+  steps?: AgentStep[]
 }
 
 export type Turn = UserTurn | AssistantTurn
@@ -43,6 +51,10 @@ export interface Conversation {
   /** Prompt système figé à la création (un historique stable garde le cache et la réflexion valides). */
   system: string
   model?: ModelRef
+  /** « agent » : le modèle dispose d'outils pour lire, modifier et exécuter (fixé à la création). */
+  mode?: 'chat' | 'agent'
+  /** Note ajoutée au prochain message (ex. fichiers restaurés), pour garder l'historique en ajout seul. */
+  pendingNote?: string
   turns: Turn[]
 }
 
@@ -59,6 +71,8 @@ interface ChatState {
   streamingId: string | null
   focusNonce: number
   loadedFor: string | null | undefined
+  /** Mode choisi pour la prochaine nouvelle conversation. */
+  mode: 'chat' | 'agent'
 }
 
 export const useChat = create<ChatState>()(() => ({
@@ -71,7 +85,8 @@ export const useChat = create<ChatState>()(() => ({
   includeActiveFile: true,
   streamingId: null,
   focusNonce: 0,
-  loadedFor: undefined
+  loadedFor: undefined,
+  mode: 'chat'
 }))
 
 const set = useChat.setState
@@ -79,7 +94,7 @@ const get = useChat.getState
 let handle: ChatHandle | null = null
 let idCounter = 0
 
-const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(++idCounter).toString(36)}`
+export const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(++idCounter).toString(36)}`
 
 // ---------------------------------------------------------------------------
 // Persistance (un fichier par dossier de travail)
@@ -196,11 +211,11 @@ export function chatWithSelection(toggle: boolean): void {
 // Envoi
 // ---------------------------------------------------------------------------
 
-function updateConversation(id: string, fn: (c: Conversation) => Conversation): void {
+export function updateConversation(id: string, fn: (c: Conversation) => Conversation): void {
   set((s) => ({ conversations: s.conversations.map((c) => (c.id === id ? fn(c) : c)) }))
 }
 
-function updateTurn(convId: string, turnId: string, fn: (t: AssistantTurn) => AssistantTurn): void {
+export function updateTurn(convId: string, turnId: string, fn: (t: AssistantTurn) => AssistantTurn): void {
   updateConversation(convId, (c) => ({
     ...c,
     updatedAt: Date.now(),
@@ -217,6 +232,8 @@ export function toApiMessages(turns: Turn[]): ChatMessage[] {
         ? [{ type: 'text', text: t.sent }, ...t.images.map((i) => ({ type: 'image' as const, mediaType: i.mediaType, data: i.data }))]
         : t.sent
       out.push({ role: 'user', content })
+    } else if (t.steps) {
+      out.push(...agentStepMessages(t.steps))
     } else if (t.text || t.providerData) {
       // Une réponse interrompue n'a pas de contenu natif complet : on n'en garde que le texte.
       out.push({ role: 'assistant', content: t.text, ...(t.status === 'done' && t.providerData ? { providerData: t.providerData } : {}) })
@@ -253,10 +270,18 @@ export async function sendMessage(text: string): Promise<void> {
   const ide = useIde.getState()
 
   let conv = activeConversation()
-  const model = conv?.model ?? ide.settings.ai.models.chat
+  const mode = conv?.mode ?? get().mode
+  const models = ide.settings.ai.models
+  const model = conv?.model ?? (mode === 'agent' ? (models.agent ?? models.chat) : models.chat)
   if (!model) {
-    throw new Error('Aucun modèle de chat n’est configuré. Choisissez-en un dans Paramètres › Modèles et clés API.')
+    throw new Error(
+      mode === 'agent'
+        ? 'Aucun modèle n’est configuré pour l’agent. Choisissez-en un dans Paramètres › Modèles et clés API.'
+        : 'Aucun modèle de chat n’est configuré. Choisissez-en un dans Paramètres › Modèles et clés API.'
+    )
   }
+  if (mode === 'agent' && !ide.workspace) throw new Error('Ouvrez un dossier pour utiliser l’agent.')
+  if (mode === 'agent' && !agentRunner) throw new Error('Le mode Agent n’est pas disponible.')
 
   if (!conv) {
     conv = {
@@ -264,8 +289,12 @@ export async function sendMessage(text: string): Promise<void> {
       title: question.replace(/\s+/g, ' ').slice(0, 60),
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      system: chatSystemPrompt({ os: osName(), workspace: ide.workspace, activeFile: null }),
+      system:
+        mode === 'agent'
+          ? agentSystemPrompt({ os: osName(), workspace: ide.workspace!, date: new Date().toISOString().slice(0, 10) })
+          : chatSystemPrompt({ os: osName(), workspace: ide.workspace, activeFile: null }),
       model,
+      mode,
       turns: []
     }
     set((s) => ({ conversations: [conv!, ...s.conversations], activeId: conv!.id }))
@@ -295,7 +324,7 @@ export async function sendMessage(text: string): Promise<void> {
     role: 'user',
     text: question,
     contexts: items.map((i) => (i.kind === 'image' ? { ...i, data: '' } : i)),
-    sent: header + buildUserMessage(question, resolved),
+    sent: (conv.pendingNote ? `${conv.pendingNote}\n\n` : '') + header + buildUserMessage(question, resolved),
     images: images.map((i) => ({ name: i.name, mediaType: i.mediaType, data: i.data })),
     truncated
   }
@@ -309,11 +338,41 @@ export async function sendMessage(text: string): Promise<void> {
     notices: errors.map((e) => `Contexte ignoré — ${e}`)
   }
   const convId = conv.id
-  updateConversation(convId, (c) => ({ ...c, updatedAt: Date.now(), turns: [...c.turns, userTurn, assistant] }))
+  updateConversation(convId, (c) => ({ ...c, updatedAt: Date.now(), pendingNote: undefined, turns: [...c.turns, userTurn, assistant] }))
   set({ draftContexts: [], streamingId: assistant.id })
 
   const turns = activeConversation()!.turns.filter((t) => t.id !== assistant.id)
-  await runAssistant(convId, assistant.id, model, turns)
+  if (mode === 'agent') await agentRunner!(convId, assistant.id, userTurn.id, model, turns)
+  else await runAssistant(convId, assistant.id, model, turns)
+}
+
+// ---------------------------------------------------------------------------
+// Mode Agent (le moteur est enregistré par store/agent.ts)
+// ---------------------------------------------------------------------------
+
+type AgentRunner = (convId: string, assistantId: string, userTurnId: string, model: ModelRef, turns: Turn[]) => Promise<void>
+let agentRunner: AgentRunner | null = null
+let agentStopper: (() => void) | null = null
+
+export function registerAgentRunner(run: AgentRunner, stop: () => void): void {
+  agentRunner = run
+  agentStopper = stop
+}
+
+export function setMode(mode: 'chat' | 'agent'): void {
+  set({ mode })
+}
+
+export function setStreaming(id: string | null): void {
+  set({ streamingId: id })
+}
+
+export function updateUserTurn(convId: string, turnId: string, fn: (t: UserTurn) => UserTurn): void {
+  updateConversation(convId, (c) => ({ ...c, turns: c.turns.map((t) => (t.id === turnId && t.role === 'user' ? fn(t) : t)) }))
+}
+
+export function setPendingNote(convId: string, note: string): void {
+  updateConversation(convId, (c) => ({ ...c, pendingNote: c.pendingNote ? `${c.pendingNote}\n${note}` : note }))
 }
 
 async function runAssistant(convId: string, turnId: string, model: ModelRef, turns: Turn[]): Promise<void> {
@@ -370,6 +429,7 @@ async function runAssistant(convId: string, turnId: string, model: ModelRef, tur
 
 export function stopStreaming(): void {
   handle?.abort()
+  agentStopper?.()
 }
 
 /** Relance la dernière réponse (après une erreur ou pour obtenir une autre réponse). */
@@ -380,6 +440,8 @@ export async function retryLast(): Promise<void> {
   if (!lastAssistant) return
   const model = conv.model ?? useIde.getState().settings.ai.models.chat
   if (!model) return
+  // En mode Agent, les actions déjà effectuées restent dans l'historique : on demande de reprendre.
+  if (conv.mode === 'agent') return sendMessage('Reprends la tâche là où tu t’es arrêté.')
   const turns = conv.turns.filter((t) => t.id !== lastAssistant.id)
   const fresh: AssistantTurn = { id: newId('a'), role: 'assistant', text: '', reasoning: '', model, status: 'streaming', notices: [] }
   updateConversation(conv.id, (c) => ({ ...c, turns: [...turns, fresh] }))

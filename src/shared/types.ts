@@ -12,6 +12,7 @@ import {
   type UsageEntry
 } from './ai'
 import type { CompletionRequest, CompletionResult } from './completion'
+import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from './agent'
 
 export interface FileEntry {
   name: string
@@ -67,6 +68,7 @@ export interface Settings {
   autocompleteDelay: number
   excludedFolders: string[]
   ai: AiSettings
+  agent: AgentSettings
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -87,7 +89,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autocomplete: true,
   autocompleteDelay: 300,
   excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__'],
-  ai: DEFAULT_AI_SETTINGS
+  ai: DEFAULT_AI_SETTINGS,
+  agent: DEFAULT_AGENT_SETTINGS
 }
 
 export interface SessionState {
@@ -168,6 +171,16 @@ export interface IdeApi {
   }
   git: {
     diff(cwd: string): Promise<string>
+  }
+  agent: {
+    run(
+      id: string,
+      command: string,
+      cwd: string,
+      timeoutSeconds: number
+    ): Promise<{ exitCode: number | null; output: string; timedOut: boolean; killed: boolean; truncated: boolean }>
+    kill(id: string): void
+    onOutput(cb: (id: string, chunk: string) => void): () => void
   }
   settings: {
     get(): Promise<Settings>
