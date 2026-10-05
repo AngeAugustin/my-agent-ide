@@ -1,6 +1,7 @@
 import { app, ipcMain, safeStorage, type WebContents } from 'electron'
 import { join } from 'node:path'
 import type { ChatRequest, KeyStorageInfo } from '@shared/ai'
+import type { CompletionRequest } from '@shared/completion'
 import type { Settings } from '@shared/types'
 import { JsonStore } from '../store'
 import { KeyStore, type Encryptor } from './keyStore'
@@ -54,6 +55,19 @@ export function registerAiHandlers(getContents: () => WebContents | null, getSet
       .finally(() => controllers.delete(requestId))
   })
   ipcMain.on('ai:abort', (_e, requestId: string) => controllers.get(requestId)?.abort())
+
+  ipcMain.handle('ai:complete', async (_e, requestId: string, request: CompletionRequest) => {
+    const controller = new AbortController()
+    controllers.set(requestId, controller)
+    try {
+      return { ok: true, result: await service.complete(request, controller.signal) }
+    } catch (err) {
+      const e = err as { code?: string; message?: string }
+      return { ok: false, code: e.code ?? 'unknown', message: e.message ?? String(err) }
+    } finally {
+      controllers.delete(requestId)
+    }
+  })
 
   return service
 }

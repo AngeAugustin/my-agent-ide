@@ -161,7 +161,7 @@ export type ModelRole = 'chat' | 'edit' | 'autocomplete' | 'agent'
 export const MODEL_ROLES: Array<{ id: ModelRole; label: string; description: string }> = [
   { id: 'chat', label: 'Chat', description: 'Conversation dans le panneau latéral (Ctrl+L).' },
   { id: 'edit', label: 'Édition en ligne', description: 'Modifications demandées avec Ctrl+K.' },
-  { id: 'autocomplete', label: 'Autocomplétion', description: 'Suggestions pendant la frappe : privilégiez un modèle rapide.' },
+  { id: 'autocomplete', label: 'Autocomplétion', description: 'Suggestions pendant la frappe : privilégiez un modèle rapide (Codestral, DeepSeek, Haiku, un modèle de code local…).' },
   { id: 'agent', label: 'Agent', description: 'Tâches en plusieurs étapes sur plusieurs fichiers.' }
 ]
 

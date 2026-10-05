@@ -397,6 +397,8 @@ export function AiSettingsSection() {
   const providers = useAi((s) => s.providers)
   const storage = useAi((s) => s.storage)
   const showReasoning = useIde((s) => s.settings.showReasoning)
+  const autocomplete = useIde((s) => s.settings.autocomplete)
+  const autocompleteDelay = useIde((s) => s.settings.autocompleteDelay)
 
   useEffect(() => {
     void loadAi()
@@ -446,6 +448,42 @@ export function AiSettingsSection() {
           </label>
         </div>
       </div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Autocomplétion pendant la frappe</div>
+          <div className="setting-description">
+            Suggestions grisées : <kbd>Tab</kbd> pour accepter, <kbd>Ctrl+→</kbd> mot par mot, <kbd>Échap</kbd> pour ignorer, <kbd>Alt+\</kbd> pour en demander une.
+          </div>
+        </div>
+        <div className="setting-control">
+          <label className="switch">
+            <input type="checkbox" aria-label="Autocomplétion" checked={autocomplete} onChange={(e) => void updateSettings({ autocomplete: e.target.checked })} />
+            <span className="switch-track" />
+          </label>
+        </div>
+      </div>
+      {autocomplete && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-title">Délai avant suggestion</div>
+            <div className="setting-description">En millisecondes après la dernière frappe. Plus court : plus réactif, mais plus de requêtes.</div>
+          </div>
+          <div className="setting-control">
+            <input
+              type="number"
+              min={50}
+              max={3000}
+              step={50}
+              value={autocompleteDelay}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (v >= 50 && v <= 3000) void updateSettings({ autocompleteDelay: v })
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <h3>Fournisseurs</h3>
       <div className="provider-list">

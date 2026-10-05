@@ -54,7 +54,8 @@ const api: IdeApi = {
     resetUsage: () => ipcRenderer.invoke('ai:resetUsage'),
     chat: (requestId, request) => ipcRenderer.invoke('ai:chat', requestId, request),
     abort: (requestId) => ipcRenderer.send('ai:abort', requestId),
-    onEvent: (cb) => on<[string, ChatEvent]>('ai:event', cb)
+    onEvent: (cb) => on<[string, ChatEvent]>('ai:event', cb),
+    complete: (requestId, request) => ipcRenderer.invoke('ai:complete', requestId, request)
   },
   chats: {
     load: (workspace) => ipcRenderer.invoke('chats:load', workspace),

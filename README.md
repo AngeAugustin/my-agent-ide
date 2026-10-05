@@ -2,7 +2,7 @@
 
 Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vous apportez vos propres clés API** (Anthropic, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, Ollama…).
 
-> État : **phase 3 — chat IA et édition en ligne**. L’autocomplétion et le mode Agent arrivent dans les phases suivantes (voir la feuille de route).
+> État : **phase 4 — autocomplétion IA**. Le mode Agent arrive dans la phase suivante (voir la feuille de route).
 
 ## Fonctionnalités actuelles
 
@@ -28,6 +28,9 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
   - sur chaque bloc de code : copier, insérer au curseur, **Appliquer** au fichier indiqué (création ou fusion d’un extrait par le modèle d’édition, puis vue de différences à accepter ou rejeter), coller une commande dans le terminal (sans l’exécuter) ;
   - choix du modèle par conversation, régénération, arrêt, historique des conversations par dossier.
 - **Édition en ligne** (`Ctrl+K` dans l’éditeur) : décrivez la modification de la sélection (ou le code à générer au curseur) ; la réponse s’écrit directement dans le fichier, puis s’affiche en différences (lignes ajoutées en vert, supprimées barrées) — `Ctrl+Entrée` pour accepter, `Échap` pour rejeter, ou affinez avec une nouvelle instruction. Une seule annulation (`Ctrl+Z`) défait toute la modification.
+- **Autocomplétion IA** (texte grisé pendant la frappe) : `Tab` pour accepter, `Ctrl+→` pour accepter mot par mot, `Échap` pour ignorer, `Alt+\` pour en demander une ; activation et délai réglables, indicateur « Tab » dans la barre d’état (clic pour activer/désactiver).
+  - point d’API **FIM** natif (remplissage entre le code avant et après le curseur) pour Codestral (Mistral), DeepSeek, Ollama et LM Studio ; sinon, n’importe quel modèle de conversation (par défaut Claude Haiku 4.5 avec Anthropic) ;
+  - suggestions nettoyées (pas de Markdown, pas de répétition du code existant), mises en cache : taper le début d’une suggestion ne relance pas de requête, même quand l’éditeur ferme automatiquement une parenthèse.
 - Interface entièrement **en français**.
 
 ## Prérequis
@@ -83,7 +86,7 @@ Sécurité : `contextIsolation` et `sandbox` sont activés, `nodeIntegration` es
 1. ✅ **Fondations** : éditeur, explorateur, onglets, terminal, palette, recherche, paramètres
 2. ✅ **Clés API (BYOK)** : gestionnaire de clés chiffrées, couche multi-fournisseurs, choix des modèles
 3. ✅ **Chat IA** (`Ctrl+L`) avec contexte `@`, application des modifications avec diff, et **édition en ligne** (`Ctrl+K`)
-4. **Autocomplétion IA** (Tab)
+4. ✅ **Autocomplétion IA** (Tab)
 5. **Mode Agent** : modifications multi-fichiers, exécution de commandes, points de restauration
 6. **Indexation du code** et recherche sémantique `@codebase`
 7. **Finitions** : Git, serveurs de langage (LSP), serveurs MCP, règles de projet, installateurs

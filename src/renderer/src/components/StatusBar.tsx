@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { openPalette, toggleTheme, useIde } from '../store/ide'
 import { modelLabel, useAi } from '../store/ai'
+import { toggleAutocomplete, useAutocomplete } from '../lib/autocomplete'
 import { monaco } from '../lib/monaco'
 import { basename } from '../lib/paths'
 import { runCommand } from '../lib/commands'
@@ -31,6 +32,9 @@ export function StatusBar() {
   const hasEditor = useIde((s) => !!s.activeId && !s.activeId.startsWith('ide://'))
   const { errors, warnings } = useMarkerCounts()
   const chatModel = useIde((s) => s.settings.ai.models.chat)
+  const autocompleteOn = useIde((s) => s.settings.autocomplete)
+  const autocompleteModel = useIde((s) => s.settings.ai.models.autocomplete)
+  const { pending, lastError } = useAutocomplete()
   useAi((s) => s.providers) // rafraîchit le libellé quand la liste des modèles change
 
   return (
@@ -58,6 +62,20 @@ export function StatusBar() {
             </button>
           </>
         )}
+        <button
+          className={`status-item${lastError && autocompleteOn ? ' status-warning' : ''}`}
+          title={
+            !autocompleteModel
+              ? 'Aucun modèle d’autocomplétion (Paramètres › Modèles et clés API)'
+              : lastError && autocompleteOn
+                ? `Autocomplétion : ${lastError}`
+                : `Autocomplétion ${autocompleteOn ? 'activée' : 'désactivée'} (${autocompleteModel.modelId}) — cliquer pour basculer`
+          }
+          onClick={toggleAutocomplete}
+        >
+          <Icon name={pending ? 'loading' : autocompleteOn && autocompleteModel ? 'copilot' : 'circle-slash'} className={pending ? 'codicon-modifier-spin' : undefined} />
+          {autocompleteOn ? 'Tab' : 'Tab désactivé'}
+        </button>
         <button
           className="status-item"
           title={chatModel ? `Modèle de chat : ${chatModel.modelId} — cliquer pour changer` : 'Configurer un modèle IA'}

@@ -12,6 +12,9 @@ import {
   type UsageEntry
 } from '@shared/ai'
 import { AiError, toAiError } from './errors'
+import { COMPLETION_SYSTEM, completionUserPrompt, type CompletionRequest, type CompletionResult } from '@shared/completion'
+import { fimComplete, fimEndpoint } from './providers/fim'
+import { supportsAdaptiveThinking } from './providers/anthropic'
 import type { KeyStore } from './keyStore'
 import { anthropicAdapter } from './providers/anthropic'
 import { geminiAdapter } from './providers/gemini'
@@ -193,6 +196,62 @@ export class AiService {
       lastUsed: Date.now()
     }
     await this.opts.usage.set(stats)
+  }
+
+  /** Modèles pour lesquels le point d'API FIM a échoué : on passe alors par la conversation. */
+  private readonly fimUnsupported = new Set<string>()
+
+  /** Suggestion d'autocomplétion (réponse complète, non diffusée). */
+  async complete(req: CompletionRequest, signal: AbortSignal): Promise<CompletionResult> {
+    const config = await this.resolve(req.providerId)
+    const maxTokens = req.maxTokens ?? 256
+    const key = `${req.providerId}::${req.model}`
+    let usage = { inputTokens: 0, outputTokens: 0 }
+
+    try {
+      if (fimEndpoint(config, req.model) && !this.fimUnsupported.has(key)) {
+        try {
+          const text = await fimComplete(config, { model: req.model, prefix: req.prefix, suffix: req.suffix, maxTokens }, signal)
+          return { text, via: 'fim' }
+        } catch (err) {
+          const e = toAiError(err, { providerName: config.definition.name, baseUrl: config.baseUrl })
+          // Modèle sans support FIM (ou point d'API absent) : on bascule durablement sur la conversation.
+          if (e.code !== 'bad_request' && e.code !== 'not_found') throw e
+          this.fimUnsupported.add(key)
+        }
+      }
+
+      let text = ''
+      let failure: AiError | null = null
+      const cache = await this.opts.modelCache.get()
+      await ADAPTERS[config.definition.kind].chat(
+        config,
+        {
+          providerId: req.providerId,
+          model: req.model,
+          system: COMPLETION_SYSTEM,
+          messages: [{ role: 'user', content: completionUserPrompt(req) }],
+          maxTokens,
+          // Les modèles Claude récents réfléchissent toujours : un effort faible garde des suggestions rapides.
+          ...(config.definition.kind === 'anthropic' && supportsAdaptiveThinking(req.model) ? { effort: 'low' as const, maxTokens: Math.max(maxTokens, 2048) } : {})
+        },
+        {
+          signal,
+          modelMaxOutput: cache[req.providerId]?.models.find((m) => m.id === req.model)?.maxOutput,
+          emit: (ev) => {
+            if (ev.type === 'text') text += ev.text
+            else if (ev.type === 'usage') usage = ev
+            else if (ev.type === 'error') failure = new AiError(ev.code, ev.message)
+          }
+        }
+      )
+      if (failure) throw failure
+      return { text, via: 'chat' }
+    } catch (err) {
+      throw toAiError(err, { providerName: config.definition.name, baseUrl: config.baseUrl, local: config.definition.local })
+    } finally {
+      await this.recordUsage(req.providerId, usage.inputTokens, usage.outputTokens)
+    }
   }
 
   async usage(): Promise<UsageStats> {

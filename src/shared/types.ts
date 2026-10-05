@@ -11,6 +11,7 @@ import {
   type ProviderTestResult,
   type UsageEntry
 } from './ai'
+import type { CompletionRequest, CompletionResult } from './completion'
 
 export interface FileEntry {
   name: string
@@ -62,6 +63,8 @@ export interface Settings {
   terminalFontSize: number
   terminalShell: string
   showReasoning: boolean
+  autocomplete: boolean
+  autocompleteDelay: number
   excludedFolders: string[]
   ai: AiSettings
 }
@@ -81,6 +84,8 @@ export const DEFAULT_SETTINGS: Settings = {
   terminalFontSize: 13,
   terminalShell: '',
   showReasoning: true,
+  autocomplete: true,
+  autocompleteDelay: 300,
   excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__'],
   ai: DEFAULT_AI_SETTINGS
 }
@@ -152,6 +157,10 @@ export interface IdeApi {
     chat(requestId: string, request: ChatRequest): Promise<void>
     abort(requestId: string): void
     onEvent(cb: (requestId: string, event: ChatEvent) => void): () => void
+    complete(
+      requestId: string,
+      request: CompletionRequest
+    ): Promise<{ ok: true; result: CompletionResult } | { ok: false; code: string; message: string }>
   }
   chats: {
     load(workspace: string | null): Promise<unknown>

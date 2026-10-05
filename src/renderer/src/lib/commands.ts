@@ -26,6 +26,7 @@ import {
 import { killTerminal, newTerminal, toggleTerminalPanel } from '../store/terminals'
 import { getActiveEditor } from './activeEditor'
 import { startInlineEdit } from './inlineEdit'
+import { toggleAutocomplete } from './autocomplete'
 import { chatWithSelection, newConversation, toggleChat } from '../store/chat'
 
 export interface Command {
@@ -132,6 +133,15 @@ export const commands: Command[] = [
     keybinding: 'Mod+K',
     when: () => !!getActiveEditor()?.hasTextFocus(),
     run: () => startInlineEdit(getActiveEditor())
+  },
+  { id: 'ai.toggleAutocomplete', title: 'Activer/désactiver l’autocomplétion', category: 'IA', run: toggleAutocomplete },
+  {
+    id: 'ai.triggerSuggestion',
+    title: 'Demander une suggestion d’autocomplétion',
+    category: 'IA',
+    keybinding: 'Alt+\\',
+    when: () => !!getActiveEditor()?.hasTextFocus(),
+    run: () => getActiveEditor()?.trigger('ide', 'editor.action.inlineSuggest.trigger', {})
   },
   { id: 'ai.configure', title: 'Configurer les modèles et les clés API', category: 'IA', run: () => openSettings('ai') },
   { id: 'ai.selectChatModel', title: 'Choisir le modèle de chat…', category: 'IA', run: () => openPalette('models') },

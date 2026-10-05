@@ -2402,3 +2402,7 @@ button.status-item:hover {
   padding-left: 4px;
   overflow: hidden;
 }
+
+.status-item.status-warning {
+  color: var(--warning);
+}
