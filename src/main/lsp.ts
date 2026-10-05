@@ -16,7 +16,7 @@ const sessions = new Map<number, Session>()
 let nextId = 1
 
 /** Cherche un exécutable dans le projet (node_modules/.bin) puis dans le PATH. */
-function findExecutable(command: string, root: string | null): string | null {
+export function findExecutable(command: string, root: string | null): string | null {
   const exts = process.platform === 'win32' ? ['.cmd', '.exe', '.bat', ''] : ['']
   const dirs = [...(root ? [join(root, 'node_modules', '.bin')] : []), ...(process.env.PATH ?? '').split(delimiter)]
   for (const dir of dirs) {

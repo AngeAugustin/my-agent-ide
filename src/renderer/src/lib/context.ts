@@ -4,6 +4,7 @@ import { basename, isInside, relative } from './paths'
 import { fileBlock, type ResolvedContext } from './prompts'
 import { activeTerminalText } from './terminalRegistry'
 import { getFileIndex, useIde } from '../store/ide'
+import { debugContextText } from '../store/debug'
 
 export type ContextItem =
   | { kind: 'file'; path: string }
@@ -14,6 +15,7 @@ export type ContextItem =
   | { kind: 'terminal' }
   | { kind: 'codebase' }
   | { kind: 'web' }
+  | { kind: 'debug' }
   | { kind: 'docs'; id: string; name: string }
   | { kind: 'url'; url: string }
   | { kind: 'image'; name: string; mediaType: string; data: string }
@@ -59,6 +61,8 @@ export function contextLabel(item: ContextItem): string {
       return 'Codebase'
     case 'web':
       return 'Web'
+    case 'debug':
+      return 'Débogueur'
     case 'docs':
       return item.name
     case 'url':
@@ -78,6 +82,7 @@ export function contextIcon(item: ContextItem): string {
     terminal: 'terminal',
     codebase: 'database',
     web: 'globe',
+    debug: 'debug-alt',
     docs: 'book',
     url: 'link',
     image: 'file-media'
@@ -175,6 +180,8 @@ export async function resolveContext(item: ContextItem, question = ''): Promise<
         : 'Aucun extrait pertinent trouvé (la documentation est peut-être encore en cours d’indexation).'
       return { label: item.name, text: `<documentation nom="${attr(item.name)}">\n${body}\n</documentation>` }
     }
+    case 'debug':
+      return { label: 'Débogueur', text: `<debogueur>\n${await debugContextText()}\n</debogueur>` }
     case 'url': {
       const page = await window.api.web.fetch(item.url, 40_000)
       return { label: contextLabel(item), text: `<page_web url="${page.url}" titre="${attr(page.title)}">\n${page.text}\n</page_web>`, truncated: page.truncated }

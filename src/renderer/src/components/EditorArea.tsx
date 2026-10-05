@@ -20,6 +20,7 @@ import { basename, relative } from '../lib/paths'
 import { CodeEditor } from './CodeEditor'
 import { showContextMenu } from './ContextMenu'
 import { Icon } from './Icon'
+import { DebugControls } from './DebugView'
 import { SettingsPage } from './SettingsPage'
 import { DiffReview } from './DiffReview'
 
@@ -187,6 +188,9 @@ export function EditorArea() {
 
   return (
     <div className="editor-area">
+      <div className="debug-floating">
+        <DebugControls compact />
+      </div>
       {tabs.length > 0 && (
         <div className="tab-bar" onDoubleClick={(e) => e.target === e.currentTarget && runCommand('file.new')}>
           {tabs.map((t, i) => (

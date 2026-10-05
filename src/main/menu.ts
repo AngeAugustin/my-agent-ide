@@ -63,9 +63,26 @@ export function buildMenu(getContents: () => WebContents | null): Menu {
         { role: 'zoomIn', label: 'Zoom avant' },
         { role: 'zoomOut', label: 'Zoom arrière' },
         { role: 'resetZoom', label: 'Taille réelle' },
-        { role: 'togglefullscreen', label: 'Plein écran' },
+        isMac ? { role: 'togglefullscreen', label: 'Plein écran' } : item('Plein écran', 'view.fullscreen', 'F11'),
         { type: 'separator' },
         { role: 'toggleDevTools', label: 'Outils de développement' }
+      ]
+    },
+    {
+      label: 'Exécuter',
+      submenu: [
+        item('Démarrer le débogage / Continuer', 'debug.start', 'F5'),
+        item('Arrêter le débogage', 'debug.stop', 'Shift+F5'),
+        item('Redémarrer le débogage', 'debug.restart', 'CmdOrCtrl+Shift+F5'),
+        { type: 'separator' },
+        item('Pas à pas principal', 'debug.stepOver', 'F10'),
+        item('Pas à pas détaillé', 'debug.stepInto', 'F11'),
+        item('Pas à pas sortant', 'debug.stepOut', 'Shift+F11'),
+        { type: 'separator' },
+        item('Ajouter/retirer un point d’arrêt', 'debug.toggleBreakpoint', 'F9'),
+        item('Retirer tous les points d’arrêt', 'debug.removeAllBreakpoints'),
+        { type: 'separator' },
+        item('Ouvrir les configurations (launch.json)', 'debug.openLaunch')
       ]
     },
     {

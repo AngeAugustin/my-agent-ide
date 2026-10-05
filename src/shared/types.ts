@@ -17,6 +17,7 @@ import type { IndexStatus, SearchHit } from './codeindex'
 import type { GitBranch, GitStatus } from './git'
 import type { McpServerEntry, McpServerStatus } from './mcp'
 import { DEFAULT_LSP_SETTINGS, type LspServerStatus, type LspSettings } from './lsp'
+import type { BreakpointResult, DebugConfig, DebugEvent, DebugFrame, DebugScope, DebugVariable, SourceBreakpoint } from './debug'
 import { DEFAULT_WEB_SETTINGS, type DocHit, type DocStatus, type SearchProviderId, type WebPage, type WebSearchResult, type WebSettings } from './web'
 
 export interface FileEntry {
@@ -254,6 +255,21 @@ export interface IdeApi {
     search(ids: string[], query: string, limit?: number): Promise<DocHit[]>
     onStatus(cb: (statuses: DocStatus[]) => void): () => void
   }
+  debug: {
+    start(config: DebugConfig, breakpoints: Record<string, SourceBreakpoint[]>): Promise<number>
+    setBreakpoints(id: number, path: string, breakpoints: SourceBreakpoint[]): Promise<BreakpointResult[]>
+    resume(id: number): Promise<void>
+    stepOver(id: number): Promise<void>
+    stepInto(id: number): Promise<void>
+    stepOut(id: number): Promise<void>
+    pause(id: number): Promise<void>
+    stackTrace(id: number): Promise<DebugFrame[]>
+    scopes(id: number, frameId: number): Promise<DebugScope[]>
+    variables(id: number, ref: number): Promise<DebugVariable[]>
+    evaluate(id: number, expression: string, frameId?: number): Promise<{ value: string; ref: number }>
+    stop(id: number): Promise<void>
+    onEvent(cb: (id: number, event: DebugEvent) => void): () => void
+  }
   agent: {
     run(
       id: string,
@@ -277,5 +293,6 @@ export interface IdeApi {
     onBeforeClose(cb: () => void): () => void
     confirmClose(): void
     setTitle(title: string): void
+    toggleFullScreen(): void
   }
 }

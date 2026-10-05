@@ -8,6 +8,7 @@ import {
 } from '@shared/types'
 import { abortAllChats, getKeyStore, registerAiHandlers } from './ai/ipc'
 import { registerWebHandlers, stopDocs } from './web/ipc'
+import { registerDebugHandlers, stopAllDebug } from './debug/ipc'
 import { killAllAgentCommands, registerAgentHandlers } from './agentCommands'
 import { registerChatHandlers } from './chats'
 import { registerGitHandlers } from './git'
@@ -116,6 +117,7 @@ function registerAppHandlers(): void {
     mainWindow?.close()
   })
   ipcMain.on('app:set-title', (_e, title: string) => mainWindow?.setTitle(title))
+  ipcMain.on('app:toggle-fullscreen', () => mainWindow?.setFullScreen(!mainWindow.isFullScreen()))
 }
 
 app.whenReady().then(() => {
@@ -131,6 +133,7 @@ app.whenReady().then(() => {
   registerMcpHandlers(getContents, () => settingsStore.get())
   registerLspHandlers(getContents, () => settingsStore.get())
   registerAgentHandlers(getContents)
+  registerDebugHandlers(getContents)
   Menu.setApplicationMenu(buildMenu(getContents))
   createWindow()
 
@@ -142,6 +145,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   abortAllChats()
   stopDocs()
+  stopAllDebug()
   killAllAgentCommands()
   void closeAllMcp()
   stopAllLsp()

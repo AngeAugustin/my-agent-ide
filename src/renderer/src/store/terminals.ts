@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useDebug } from './debug'
 import { togglePanel, useIde } from './ide'
 
 export interface TerminalInfo {
@@ -26,6 +27,7 @@ export function newTerminal(cwd: string | null = null): void {
     terminals: [...s.terminals, { key, title: `Terminal ${key}`, ptyId: null, exited: false, cwd }],
     activeKey: key
   }))
+  useDebug.setState({ panelTab: 'terminal' })
   togglePanel(true)
 }
 
@@ -58,6 +60,13 @@ export function killTerminal(key: number | null = useTerminals.getState().active
 /** Affiche le panneau terminal, en créant un terminal s'il n'y en a aucun. */
 export function toggleTerminalPanel(): void {
   const visible = useIde.getState().panelVisible
+  if (visible && useDebug.getState().panelTab !== 'terminal') {
+    // Panneau ouvert sur la console de débogage : on revient au terminal.
+    useDebug.setState({ panelTab: 'terminal' })
+    if (useTerminals.getState().terminals.length === 0) newTerminal()
+    return
+  }
+  useDebug.setState({ panelTab: 'terminal' })
   if (!visible && useTerminals.getState().terminals.length === 0) newTerminal()
   else togglePanel()
 }

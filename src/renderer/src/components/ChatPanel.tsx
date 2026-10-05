@@ -52,6 +52,7 @@ const SPECIAL: Array<{ words: string; label: string; detail: string; icon: strin
   { words: 'problemes erreurs diagnostics problems', label: 'Problèmes', detail: 'Erreurs et avertissements de l’éditeur', icon: 'warning', item: { kind: 'problems' } },
   { words: 'git diff modifications changements', label: 'Modifications Git', detail: 'Diff par rapport au dernier commit', icon: 'git-compare', item: { kind: 'git' } },
   { words: 'terminal sortie console', label: 'Terminal', detail: 'Dernières lignes du terminal actif', icon: 'terminal', item: { kind: 'terminal' } },
+  { words: 'debug debogueur debogage pile variables pause', label: 'Débogueur', detail: 'Pile d’appels et variables du programme en pause', icon: 'debug-alt', item: { kind: 'debug' } },
   { words: 'web internet recherche google en ligne', label: 'Web', detail: 'Recherche sur Internet avec la question', icon: 'globe', item: { kind: 'web' } }
 ]
 

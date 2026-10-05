@@ -3167,3 +3167,355 @@ textarea.mcp-json {
   pointer-events: none;
   opacity: 0.9;
 }
+
+/* --- Débogueur ---------------------------------------------------------------- */
+
+.editor-area {
+  position: relative;
+}
+
+.debug-breakpoint,
+.debug-breakpoint-hint {
+  cursor: pointer;
+}
+
+.debug-breakpoint::before,
+.debug-breakpoint-hint::before {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: 4px 0 0 5px;
+  border-radius: 50%;
+  background: #e51400;
+}
+
+.debug-breakpoint-hint::before {
+  opacity: 0.35;
+}
+
+.debug-breakpoint.disabled::before {
+  background: #848484;
+}
+
+.debug-breakpoint.conditional::before {
+  background: transparent;
+  border: 3px solid #e51400;
+  width: 4px;
+  height: 4px;
+}
+
+.debug-current-line {
+  background: rgba(255, 200, 0, 0.18);
+  outline: 1px solid rgba(255, 200, 0, 0.45);
+}
+
+.debug-frame-line {
+  background: rgba(90, 200, 120, 0.15);
+}
+
+.debug-current-arrow::after,
+.debug-frame-arrow::after {
+  content: '➜';
+  position: absolute;
+  left: 3px;
+  font-size: 13px;
+  line-height: 18px;
+  color: #ffcc00;
+}
+
+.debug-frame-arrow::after {
+  color: #5ac878;
+}
+
+.debug-floating {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.debug-controls {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px;
+}
+
+.debug-controls.compact {
+  padding: 2px 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.debug-controls .icon-button .codicon-debug-continue,
+.debug-controls .icon-button .codicon-debug-start {
+  color: #89d185;
+}
+
+.debug-controls .icon-button .codicon-debug-step-over,
+.debug-controls .icon-button .codicon-debug-step-into,
+.debug-controls .icon-button .codicon-debug-step-out,
+.debug-controls .icon-button .codicon-debug-pause {
+  color: #75beff;
+}
+
+.debug-controls .icon-button.danger .codicon {
+  color: #f48771;
+}
+
+.debug-controls .icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.debug-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.debug-start {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  align-items: center;
+}
+
+.debug-start select {
+  flex: 1;
+  min-width: 0;
+}
+
+.debug-status {
+  padding: 2px 12px 6px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.debug-status.paused {
+  color: #e2c08d;
+}
+
+.debug-sections {
+  flex: 1;
+  overflow: auto;
+}
+
+.debug-section-body {
+  padding-bottom: 6px;
+}
+
+.debug-empty {
+  padding: 4px 16px 8px;
+  font-size: 12px;
+}
+
+.debug-var,
+.debug-frame,
+.debug-bp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 8px 0 16px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.debug-var:hover,
+.debug-frame:hover,
+.debug-bp:hover {
+  background: var(--bg-hover);
+}
+
+.debug-var-name {
+  color: #c586c0;
+  flex-shrink: 0;
+}
+
+.debug-var-sep {
+  color: var(--fg-muted);
+}
+
+.debug-var-value {
+  font-family: var(--font-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debug-var-value.t-string {
+  color: #ce9178;
+}
+
+.debug-var-value.t-number,
+.debug-var-value.t-int,
+.debug-var-value.t-float,
+.debug-var-value.t-boolean,
+.debug-var-value.t-bool {
+  color: #b5cea8;
+}
+
+.debug-var-value.error {
+  color: #f48771;
+}
+
+.debug-scope {
+  font-weight: 600;
+  padding-left: 8px;
+}
+
+.debug-row-action {
+  margin-left: auto;
+  visibility: hidden;
+}
+
+.debug-var:hover .debug-row-action,
+.debug-bp:hover .debug-row-action {
+  visibility: visible;
+}
+
+.debug-bp .debug-row-action + .debug-row-action {
+  margin-left: 0;
+}
+
+.debug-watch-add,
+.debug-condition {
+  margin: 2px 8px 2px 16px;
+}
+
+.debug-watch-add input,
+input.debug-condition {
+  width: calc(100% - 24px);
+  font-size: 12px;
+}
+
+.debug-frame {
+  justify-content: space-between;
+}
+
+.debug-frame.active {
+  background: var(--bg-active);
+}
+
+.debug-frame.external {
+  opacity: 0.6;
+}
+
+.debug-frame-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debug-bp .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debug-bp-line {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--bg-active);
+  font-size: 11px;
+}
+
+.debug-bp-condition {
+  padding-left: 40px;
+}
+
+button.panel-title {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 4px 2px;
+  margin-right: 10px;
+}
+
+button.panel-title.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.debug-console {
+  flex-direction: column;
+  height: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.debug-console-output {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 10px;
+  user-select: text;
+}
+
+.debug-console-line {
+  display: flex;
+  gap: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.debug-console-line .debug-var {
+  padding: 0;
+  min-height: 18px;
+}
+
+.debug-console-line.stderr,
+.debug-console-line.error {
+  color: #f48771;
+}
+
+.debug-console-line.info {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.debug-console-line.input {
+  color: var(--accent);
+}
+
+.debug-console-line.console {
+  color: var(--fg);
+}
+
+.debug-console-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding: 2px 8px;
+}
+
+.debug-console-input input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.status-bar.debugging {
+  background: #cc6633;
+  color: #fff;
+}
+
+.status-bar.debugging .status-item {
+  color: #fff;
+}
+
+.debug-internal-toggle {
+  padding: 2px 16px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}

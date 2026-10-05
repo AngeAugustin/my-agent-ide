@@ -10,7 +10,7 @@ import * as models from '../lib/editorModels'
 import { basename, dirname, isInside, join } from '../lib/paths'
 
 export type TabKind = 'file' | 'untitled' | 'settings' | 'diff'
-export type SidebarView = 'explorer' | 'search' | 'git'
+export type SidebarView = 'explorer' | 'search' | 'git' | 'debug'
 export type PaletteMode = 'files' | 'commands' | 'line' | 'models'
 
 export interface Tab {

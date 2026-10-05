@@ -3,6 +3,7 @@ import { monaco, languageLabel } from '../lib/monaco'
 import * as models from '../lib/editorModels'
 import { setActiveEditor } from '../lib/activeEditor'
 import { attachNextEdit } from '../lib/nextEdit'
+import { attachDebugDecorations } from '../lib/debugEditor'
 import { pinTab, saveTab, setCursor, useIde } from '../store/ide'
 
 /** Éditeur Monaco unique : on y échange les modèles quand l'onglet actif change. */
@@ -34,11 +35,13 @@ export function CodeEditor({ path }: { path: string | null }) {
       linkedEditing: true,
       formatOnPaste: false,
       inlineSuggest: { enabled: true },
+      glyphMargin: true,
       unicodeHighlight: { ambiguousCharacters: false }
     })
     editorRef.current = editor
     setActiveEditor(editor)
     const detachNextEdit = attachNextEdit(editor)
+    const detachDebug = attachDebugDecorations(editor)
 
     const updateCursor = () => {
       const model = editor.getModel()
@@ -76,6 +79,7 @@ export function CodeEditor({ path }: { path: string | null }) {
 
     return () => {
       detachNextEdit()
+      detachDebug()
       disposables.forEach((d) => d.dispose())
       if (currentPath.current) models.saveViewState(currentPath.current, editor.saveViewState())
       setActiveEditor(null)

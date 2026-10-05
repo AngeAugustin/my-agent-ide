@@ -29,6 +29,22 @@ import { startInlineEdit } from './inlineEdit'
 import { toggleAutocomplete } from './autocomplete'
 import { commit as gitCommit, generateCommitMessage, pull as gitPull, push as gitPush } from '../store/git'
 import { chatWithSelection, newConversation, setMode, toggleChat } from '../store/chat'
+import {
+  isDebugging,
+  isPaused,
+  openLaunchJson,
+  pause as debugPause,
+  removeAllBreakpoints,
+  restartDebugging,
+  resume as debugResume,
+  startDebugging,
+  stepInto,
+  stepOut,
+  stepOver,
+  stopDebugging,
+  toggleBreakpointAtCursor,
+  useDebug
+} from '../store/debug'
 
 export interface Command {
   id: string
@@ -170,7 +186,26 @@ export const commands: Command[] = [
       ask('My Agent IDE', 'Version 0.1.0 — un IDE propulsé par l’IA où vous apportez vos propres clés API.', [
         { label: 'OK', value: 'ok', primary: true }
       ])
-  }
+  },
+  { id: 'view.debug', title: 'Exécuter et déboguer', category: 'Affichage', keybinding: 'Mod+Shift+D', run: () => showSidebarView('debug') },
+  {
+    id: 'debug.start',
+    title: 'Démarrer le débogage / Continuer',
+    category: 'Débogage',
+    keybinding: 'F5',
+    when: () => !isDebugging() || isPaused(),
+    run: () => (isPaused() ? debugResume() : startDebugging())
+  },
+  { id: 'debug.stop', title: 'Arrêter le débogage', category: 'Débogage', keybinding: 'Shift+F5', when: isDebugging, run: stopDebugging },
+  { id: 'debug.restart', title: 'Redémarrer le débogage', category: 'Débogage', keybinding: 'Mod+Shift+F5', when: isDebugging, run: restartDebugging },
+  { id: 'debug.pause', title: 'Suspendre', category: 'Débogage', keybinding: 'F6', when: () => useDebug.getState().session?.status === 'running', run: debugPause },
+  { id: 'debug.stepOver', title: 'Pas à pas principal', category: 'Débogage', keybinding: 'F10', when: isPaused, run: stepOver },
+  { id: 'debug.stepInto', title: 'Pas à pas détaillé', category: 'Débogage', keybinding: 'F11', when: isPaused, run: stepInto },
+  { id: 'debug.stepOut', title: 'Pas à pas sortant', category: 'Débogage', keybinding: 'Shift+F11', when: isPaused, run: stepOut },
+  { id: 'debug.toggleBreakpoint', title: 'Ajouter/retirer un point d’arrêt', category: 'Débogage', keybinding: 'F9', when: hasActiveTab, run: toggleBreakpointAtCursor },
+  { id: 'debug.removeAllBreakpoints', title: 'Retirer tous les points d’arrêt', category: 'Débogage', run: removeAllBreakpoints },
+  { id: 'debug.openLaunch', title: 'Ouvrir les configurations (launch.json)', category: 'Débogage', when: hasWorkspace, run: openLaunchJson },
+  { id: 'view.fullscreen', title: 'Plein écran', category: 'Affichage', keybinding: 'F11', when: () => !isPaused(), run: () => window.api.app.toggleFullScreen() }
 ]
 
 export function runCommand(id: string): void {

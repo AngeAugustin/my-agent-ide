@@ -12,6 +12,7 @@ import { initCodeIndex } from './store/codeIndex'
 import { initGit } from './store/git'
 import { initMcp } from './store/mcp'
 import { initWeb } from './store/web'
+import { initDebug } from './store/debug'
 import { initLsp } from './lib/lsp'
 import { commands, runCommand } from './lib/commands'
 import { onDirtyChange } from './lib/editorModels'
@@ -79,6 +80,7 @@ export function App() {
         initGit()
         initMcp()
         initWeb()
+        initDebug()
         initLsp()
         return loadAi()
       })

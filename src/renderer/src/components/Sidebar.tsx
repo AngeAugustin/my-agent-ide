@@ -5,6 +5,8 @@ import { Explorer } from './Explorer'
 import { Icon } from './Icon'
 import { SearchView } from './SearchView'
 import { GitPanel } from './GitPanel'
+import { DebugView } from './DebugView'
+import { useDebug } from '../store/debug'
 import { useGit } from '../store/git'
 
 export function ActivityBar() {
@@ -15,7 +17,8 @@ export function ActivityBar() {
   const chatVisible = useChat((s) => s.visible)
 
   const changes = useGit((s) => s.status?.files.length ?? 0)
-  const item = (id: 'explorer' | 'search' | 'git', icon: string, title: string, badge = 0) => (
+  const debugging = useDebug((s) => !!s.session && s.session.status !== 'terminated')
+  const item = (id: 'explorer' | 'search' | 'git' | 'debug', icon: string, title: string, badge = 0) => (
     <button
       className={`activity-item${visible && view === id ? ' active' : ''}`}
       title={title}
@@ -32,6 +35,7 @@ export function ActivityBar() {
       {item('explorer', 'files', 'Explorateur (Ctrl+Maj+E)')}
       {item('search', 'search', 'Recherche (Ctrl+Maj+F)')}
       {item('git', 'source-control', 'Contrôle de source (Ctrl+Maj+G)', changes)}
+      {item('debug', 'debug-alt', 'Exécuter et déboguer (Ctrl+Maj+D)', debugging ? 1 : 0)}
       <button className={`activity-item${panelVisible ? ' active' : ''}`} title="Terminal (Ctrl+`)" aria-label="Terminal" onClick={toggleTerminalPanel}>
         <Icon name="terminal" />
       </button>
@@ -67,7 +71,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar" style={{ width }}>
-      {view === 'explorer' ? <Explorer /> : view === 'search' ? <SearchView /> : <GitPanel />}
+      {view === 'explorer' ? <Explorer /> : view === 'search' ? <SearchView /> : view === 'debug' ? <DebugView /> : <GitPanel />}
       <div className="resizer-col" onMouseDown={startResize} onDoubleClick={() => setSidebarWidth(260)} />
     </aside>
   )

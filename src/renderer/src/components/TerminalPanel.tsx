@@ -14,6 +14,8 @@ import {
 } from '../store/terminals'
 import { Icon } from './Icon'
 import { registerTerminal } from '../lib/terminalRegistry'
+import { DebugConsole } from './DebugView'
+import { setPanelTab, useDebug } from '../store/debug'
 
 const DARK_THEME = {
   background: '#18191c',
@@ -185,11 +187,12 @@ export function TerminalPanel() {
   const { terminals, activeKey } = useTerminals()
   const height = useIde((s) => s.panelHeight)
   const visible = useIde((s) => s.panelVisible)
+  const panelTab = useDebug((s) => s.panelTab)
 
   // Ouvre un premier terminal quand le panneau est affiché vide.
   useEffect(() => {
-    if (visible && terminals.length === 0) newTerminal()
-  }, [visible, terminals.length])
+    if (visible && panelTab === 'terminal' && terminals.length === 0) newTerminal()
+  }, [visible, panelTab, terminals.length])
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -211,8 +214,13 @@ export function TerminalPanel() {
       <div className="resizer-row" onMouseDown={startResize} />
       <div className="panel-header">
         <div className="panel-tabs">
-          <span className="panel-title">Terminal</span>
-          {terminals.map((t) => (
+          <button className={`panel-title${panelTab === 'terminal' ? ' active' : ''}`} onClick={() => setPanelTab('terminal')}>
+            Terminal
+          </button>
+          <button className={`panel-title${panelTab === 'debug' ? ' active' : ''}`} onClick={() => setPanelTab('debug')}>
+            Console de débogage
+          </button>
+          {panelTab === 'terminal' && terminals.map((t) => (
             <button
               key={t.key}
               className={`panel-tab${t.key === activeKey ? ' active' : ''}`}
@@ -235,12 +243,16 @@ export function TerminalPanel() {
           ))}
         </div>
         <div className="panel-actions">
-          <button className="icon-button" title="Nouveau terminal" onClick={() => newTerminal()}>
-            <Icon name="add" />
-          </button>
-          <button className="icon-button" title="Fermer le terminal actif" onClick={() => killTerminal()}>
-            <Icon name="trash" />
-          </button>
+          {panelTab === 'terminal' && (
+            <>
+              <button className="icon-button" title="Nouveau terminal" onClick={() => newTerminal()}>
+                <Icon name="add" />
+              </button>
+              <button className="icon-button" title="Fermer le terminal actif" onClick={() => killTerminal()}>
+                <Icon name="trash" />
+              </button>
+            </>
+          )}
           <button className="icon-button" title="Masquer le panneau" onClick={() => togglePanel(false)}>
             <Icon name="chevron-down" />
           </button>
@@ -248,8 +260,9 @@ export function TerminalPanel() {
       </div>
       <div className="panel-body">
         {terminals.map((t) => (
-          <TerminalView key={t.key} info={t} visible={visible && t.key === activeKey} />
+          <TerminalView key={t.key} info={t} visible={visible && panelTab === 'terminal' && t.key === activeKey} />
         ))}
+        <DebugConsole visible={visible && panelTab === 'debug'} />
       </div>
     </div>
   )

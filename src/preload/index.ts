@@ -3,6 +3,7 @@ import type { ChatEvent } from '@shared/ai'
 import type { IndexStatus } from '@shared/codeindex'
 import type { McpServerStatus } from '@shared/mcp'
 import type { DocStatus } from '@shared/web'
+import type { DebugEvent } from '@shared/debug'
 import type { FsChangeEvent, IdeApi } from '@shared/types'
 
 function on<T extends unknown[]>(channel: string, cb: (...args: T) => void): () => void {
@@ -122,6 +123,21 @@ const api: IdeApi = {
     search: (ids, query, limit) => ipcRenderer.invoke('docs:search', ids, query, limit),
     onStatus: (cb) => on<[DocStatus[]]>('docs:status', cb)
   },
+  debug: {
+    start: (config, breakpoints) => ipcRenderer.invoke('debug:start', config, breakpoints),
+    setBreakpoints: (id, path, bps) => ipcRenderer.invoke('debug:setBreakpoints', id, path, bps),
+    resume: (id) => ipcRenderer.invoke('debug:resume', id),
+    stepOver: (id) => ipcRenderer.invoke('debug:stepOver', id),
+    stepInto: (id) => ipcRenderer.invoke('debug:stepInto', id),
+    stepOut: (id) => ipcRenderer.invoke('debug:stepOut', id),
+    pause: (id) => ipcRenderer.invoke('debug:pause', id),
+    stackTrace: (id) => ipcRenderer.invoke('debug:stackTrace', id),
+    scopes: (id, frameId) => ipcRenderer.invoke('debug:scopes', id, frameId),
+    variables: (id, ref) => ipcRenderer.invoke('debug:variables', id, ref),
+    evaluate: (id, expression, frameId) => ipcRenderer.invoke('debug:evaluate', id, expression, frameId),
+    stop: (id) => ipcRenderer.invoke('debug:stop', id),
+    onEvent: (cb) => on<[number, DebugEvent]>('debug:event', cb)
+  },
   agent: {
     run: (id, command, cwd, timeoutSeconds) => ipcRenderer.invoke('agent:run', id, command, cwd, timeoutSeconds),
     kill: (id) => ipcRenderer.send('agent:kill', id),
@@ -139,7 +155,8 @@ const api: IdeApi = {
     onMenuCommand: (cb) => on<[string]>('menu:command', cb),
     onBeforeClose: (cb) => on<[]>('app:before-close', cb),
     confirmClose: () => ipcRenderer.send('app:confirm-close'),
-    setTitle: (title) => ipcRenderer.send('app:set-title', title)
+    setTitle: (title) => ipcRenderer.send('app:set-title', title),
+    toggleFullScreen: () => ipcRenderer.send('app:toggle-fullscreen')
   }
 }
 

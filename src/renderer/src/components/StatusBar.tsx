@@ -9,6 +9,8 @@ import { monaco } from '../lib/monaco'
 import { basename } from '../lib/paths'
 import { runCommand } from '../lib/commands'
 import { Icon } from './Icon'
+import { useDebug } from '../store/debug'
+import { useNextEdit } from '../lib/nextEdit'
 
 function useMarkerCounts(): { errors: number; warnings: number } {
   const [counts, setCounts] = useState({ errors: 0, warnings: 0 })
@@ -43,9 +45,11 @@ export function StatusBar() {
   const lspNames = useLsp((s) => s.servers)
   const indexBusy = index?.state === 'scanning' || index?.state === 'embedding'
   useAi((s) => s.providers) // rafraîchit le libellé quand la liste des modèles change
+  const debugSession = useDebug((s) => (s.session && s.session.status !== 'terminated' ? s.session : null))
+  const nextEditPending = useNextEdit((s) => s.pending)
 
   return (
-    <footer className="status-bar">
+    <footer className={`status-bar${debugSession ? ' debugging' : ''}`}>
       <div className="status-left">
         <button className="status-item" title="Ouvrir un dossier" onClick={() => runCommand('workspace.openFolder')}>
           <Icon name="folder" /> {workspace ? basename(workspace) : 'Aucun dossier'}
@@ -66,6 +70,16 @@ export function StatusBar() {
         <span className="status-item" title="Erreurs et avertissements">
           <Icon name="error" /> {errors} <Icon name="warning" /> {warnings}
         </span>
+        {debugSession && (
+          <button className="status-item" title="Exécuter et déboguer" onClick={() => runCommand('view.debug')}>
+            <Icon name="debug-alt" /> {debugSession.name} — {debugSession.status === 'paused' ? 'en pause' : debugSession.status === 'starting' ? 'démarrage' : 'en cours'}
+          </button>
+        )}
+        {nextEditPending && (
+          <span className="status-item" title="Prédiction de la prochaine modification">
+            <Icon name="loading" className="codicon-modifier-spin" /> Prédiction…
+          </span>
+        )}
       </div>
       <div className="status-right">
         {hasEditor && cursor && (

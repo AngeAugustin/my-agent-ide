@@ -168,7 +168,11 @@ class IpcTransport {
     const uri: string | undefined = message.params?.textDocument?.uri
     if (uri && !acceptsUri(this.extensions, uri)) {
       // Document d'un autre langage ou modèle temporaire : jamais envoyé à ce serveur.
-      if (message.id !== undefined && message.method) this.deliver({ jsonrpc: '2.0', id: message.id, result: null })
+      if (message.id !== undefined && message.method) {
+        // Les diagnostics « pull » attendent un rapport, jamais null.
+        const result = message.method === 'textDocument/diagnostic' ? { kind: 'full', items: [] } : null
+        this.deliver({ jsonrpc: '2.0', id: message.id, result })
+      }
       return
     }
     if (uri && message.method === 'textDocument/didOpen') this.open.add(uri)
