@@ -17,6 +17,7 @@ import type { IndexStatus, SearchHit } from './codeindex'
 import type { GitBranch, GitStatus } from './git'
 import type { McpServerEntry, McpServerStatus } from './mcp'
 import { DEFAULT_LSP_SETTINGS, type LspServerStatus, type LspSettings } from './lsp'
+import { DEFAULT_WEB_SETTINGS, type DocHit, type DocStatus, type SearchProviderId, type WebPage, type WebSearchResult, type WebSettings } from './web'
 
 export interface FileEntry {
   name: string
@@ -72,6 +73,12 @@ export interface Settings {
   userRules: string
   autocomplete: boolean
   autocompleteDelay: number
+  /** Prédiction de la prochaine modification (Tab pour y aller puis l'accepter). */
+  nextEdit: boolean
+  /** Résume automatiquement les longues conversations avant d'atteindre la limite du modèle. */
+  autoCompact: boolean
+  /** Part de la fenêtre de contexte (0,5 à 0,95) à partir de laquelle la conversation est résumée. */
+  compactThreshold: number
   excludedFolders: string[]
   ai: AiSettings
   agent: AgentSettings
@@ -80,6 +87,7 @@ export interface Settings {
   /** Serveurs MCP de projet autorisés, par dossier de projet. */
   mcpProjectEnabled: Record<string, string[]>
   lsp: LspSettings
+  web: WebSettings
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -100,12 +108,16 @@ export const DEFAULT_SETTINGS: Settings = {
   userRules: '',
   autocomplete: true,
   autocompleteDelay: 300,
+  nextEdit: true,
+  autoCompact: true,
+  compactThreshold: 0.8,
   excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__'],
   ai: DEFAULT_AI_SETTINGS,
   agent: DEFAULT_AGENT_SETTINGS,
   mcpServers: {},
   mcpProjectEnabled: {},
-  lsp: DEFAULT_LSP_SETTINGS
+  lsp: DEFAULT_LSP_SETTINGS,
+  web: DEFAULT_WEB_SETTINGS
 }
 
 export interface SessionState {
@@ -226,6 +238,21 @@ export interface IdeApi {
     reconnect(source: 'user' | 'project', name: string, root: string | null): Promise<McpServerStatus[]>
     call(source: 'user' | 'project', server: string, tool: string, args: Record<string, unknown>): Promise<{ isError: boolean; text: string }>
     onStatus(cb: (statuses: McpServerStatus[]) => void): () => void
+  }
+  web: {
+    search(query: string, count?: number): Promise<WebSearchResult[]>
+    fetch(url: string, maxChars?: number): Promise<WebPage>
+    keys(): Promise<Record<SearchProviderId, string | null>>
+    setKey(id: SearchProviderId, key: string): Promise<void>
+    deleteKey(id: SearchProviderId): Promise<void>
+  }
+  docs: {
+    list(): Promise<DocStatus[]>
+    add(name: string, url: string, maxPages: number): Promise<DocStatus[]>
+    remove(id: string): Promise<DocStatus[]>
+    reindex(id: string): Promise<void>
+    search(ids: string[], query: string, limit?: number): Promise<DocHit[]>
+    onStatus(cb: (statuses: DocStatus[]) => void): () => void
   }
   agent: {
     run(

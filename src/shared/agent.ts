@@ -33,6 +33,9 @@ export type ToolName =
   | 'run_command'
   | 'get_problems'
   | 'codebase_search'
+  | 'web_search'
+  | 'fetch_url'
+  | 'docs_search'
 
 export const AGENT_TOOLS: Array<ToolDefinition & { name: ToolName }> = [
   {
@@ -146,12 +149,50 @@ export const AGENT_TOOLS: Array<ToolDefinition & { name: ToolName }> = [
   }
 ]
 
+/** Outils web (proposés si l'utilisateur les active ; docs_search seulement si une documentation est indexée). */
+export const WEB_TOOLS: Array<ToolDefinition & { name: ToolName }> = [
+  {
+    name: 'web_search',
+    description:
+      'Recherche sur Internet. Renvoie titres, adresses et extraits des résultats. Utile pour une documentation récente, un message d’erreur inconnu ou une bibliothèque externe. Lis ensuite les pages utiles avec fetch_url.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Requête de recherche.' },
+        count: { type: 'integer', description: 'Nombre de résultats (6 par défaut, 10 au plus).' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'fetch_url',
+    description: 'Télécharge une page web (http ou https) et renvoie son contenu converti en texte.',
+    inputSchema: {
+      type: 'object',
+      properties: { url: { type: 'string', description: 'Adresse complète de la page.' } },
+      required: ['url']
+    }
+  },
+  {
+    name: 'docs_search',
+    description: 'Recherche dans les documentations indexées par l’utilisateur (bibliothèques, API). Renvoie les extraits les plus pertinents avec leur adresse.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Question ou mots-clés.' },
+        source: { type: 'string', description: 'Nom d’une documentation (optionnel ; toutes par défaut).' }
+      },
+      required: ['query']
+    }
+  }
+]
+
 /**
  * Validation minimale des arguments d'un outil selon son schéma : champs requis et types simples.
  * Renvoie un message d'erreur, ou null si les arguments sont valides.
  */
 export function validateToolInput(name: string, input: unknown): string | null {
-  const tool = AGENT_TOOLS.find((t) => t.name === name)
+  const tool = [...AGENT_TOOLS, ...WEB_TOOLS].find((t) => t.name === name)
   if (!tool) return `Outil inconnu : « ${name} ».`
   if (!input || typeof input !== 'object' || Array.isArray(input)) return 'Les arguments doivent être un objet JSON.'
   const schema = tool.inputSchema as { properties?: Record<string, { type?: string }>; required?: string[] }

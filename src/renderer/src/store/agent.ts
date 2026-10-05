@@ -1,7 +1,9 @@
 import { create } from 'zustand'
-import { AGENT_TOOLS, MUTATING_TOOLS, resolveWorkspacePath, type ToolName } from '@shared/agent'
+import { AGENT_TOOLS, MUTATING_TOOLS, WEB_TOOLS, resolveWorkspacePath, type ToolName } from '@shared/agent'
 import { stopReasonNotice, type ModelRef } from '@shared/ai'
-import { streamChat, type ChatHandle } from '../lib/ai'
+import { formatTokens, streamChat, type ChatHandle } from '../lib/ai'
+import { estimateTokens, summaryPreamble } from '@shared/compaction'
+import { needsCompaction, summarizeHistory } from '../lib/compaction'
 import { executeTool, readCurrent, removeCurrent, writeCurrent } from '../lib/agentTools'
 import { relative } from '../lib/paths'
 import {
@@ -11,6 +13,7 @@ import {
   setPendingNote,
   setStreaming,
   toApiMessages,
+  updateConversation,
   updateTurn,
   updateUserTurn,
   useChat,
@@ -81,7 +84,10 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
   const root = ide.workspace!
   const settings = ide.settings.agent
   const conv = useChat.getState().conversations.find((c) => c.id === convId)!
-  const history = toApiMessages(turns)
+  let history = toApiMessages(turns, conv.summary)
+  // Étapes déjà résumées pendant cette demande (elles ne sont plus envoyées).
+  let stepBase = 0
+  let lastInput = 0
   const checkpoint: Record<string, string | null> = {}
   const steps: AgentStep[] = []
   const totals = { inputTokens: 0, outputTokens: 0 }
@@ -94,12 +100,38 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
   updateTurn(convId, turnId, (t) => ({ ...t, steps: [] }))
   // Outils MCP des serveurs connectés au début de la demande.
   const mcp = mcpTools()
-  const toolDefinitions = [...AGENT_TOOLS, ...mcp.definitions]
+  const hasDocs = (await window.api.docs.list().catch(() => [])).some((d) => d.chunks > 0)
+  const webTools = ide.settings.web.agentTools ? WEB_TOOLS.filter((t) => t.name !== 'docs_search' || hasDocs) : []
+  const toolDefinitions = [...AGENT_TOOLS, ...webTools, ...mcp.definitions]
 
   try {
     for (let i = 0; i < settings.maxSteps && !current.stopped; i++) {
       const step: AgentStep = { id: newId('s'), text: '', reasoning: '', tools: [] }
       updateTurn(convId, turnId, (t) => ({ ...t, steps: [...(t.steps ?? []), step] }))
+
+      let messages = [...history, ...agentStepMessages(steps.slice(stepBase))]
+      if (steps.length > stepBase && needsCompaction(model, messages, conv.system, lastInput)) {
+        // Contexte presque plein : on résume la conversation et les étapes déjà faites, puis on continue.
+        useChat.setState({ compactingId: convId })
+        const summary = await summarizeHistory(model, messages, (h) => {
+          current.handle = h
+        })
+        useChat.setState({ compactingId: null })
+        if (!summary.ok && summary.aborted) {
+          status = 'stopped'
+          updateTurn(convId, turnId, (t) => ({ ...t, steps: (t.steps ?? []).filter((s) => s.id !== step.id) }))
+          break
+        }
+        if (summary.ok) {
+          const tokensBefore = Math.max(lastInput, estimateTokens(messages, conv.system))
+          stepBase = steps.length
+          lastInput = 0
+          history = [{ role: 'user', content: `${summaryPreamble(summary.text)}\n\nPoursuis la tâche en cours à partir de ce résumé.` }]
+          messages = history
+          updateConversation(convId, (c) => ({ ...c, summary: { text: summary.text, turnId, stepCount: stepBase, createdAt: Date.now(), tokensBefore } }))
+          notices.push(`Contexte résumé en cours de tâche (environ ${formatTokens(tokensBefore)} jetons condensés).`)
+        } else notices.push(`Le contexte approche de la limite du modèle et n’a pas pu être résumé : ${summary.message}`)
+      }
 
       let text = ''
       let reasoning = ''
@@ -116,7 +148,7 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
           providerId: model.providerId,
           model: model.modelId,
           system: conv.system,
-          messages: [...history, ...agentStepMessages(steps)],
+          messages,
           tools: toolDefinitions,
           showReasoning: ide.settings.showReasoning
         },
@@ -143,6 +175,7 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
         break
       }
 
+      lastInput = result.inputTokens
       totals.inputTokens += result.inputTokens
       totals.outputTokens += result.outputTokens
       const tools: AgentToolRun[] = result.toolCalls.map((call) => ({ call, status: 'pending' }))
@@ -227,7 +260,8 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
       error,
       notices: [...t.notices, ...notices],
       text: (t.steps ?? []).map((s) => s.text).filter(Boolean).join('\n\n'),
-      usage: totals
+      usage: totals,
+      contextTokens: lastInput
     }))
     if (Object.keys(checkpoint).length) updateUserTurn(convId, userTurnId, (u) => ({ ...u, checkpoint: { files: { ...checkpoint } } }))
     setStreaming(null)

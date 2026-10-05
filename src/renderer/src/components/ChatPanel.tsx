@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type Keyboar
 import type { ModelRef } from '@shared/ai'
 import {
   addContext,
+  compactActive,
+  contextUsage,
   conversationTitle,
   deleteConversation,
   newConversation,
@@ -31,6 +33,7 @@ import { formatTokens } from '../lib/ai'
 import { Markdown } from './Markdown'
 import { AgentAssistantTurn, ChangedFiles } from './AgentTurn'
 import { Icon } from './Icon'
+import { useWeb } from '../store/web'
 
 // ---------------------------------------------------------------------------
 // Mentions « @ »
@@ -48,11 +51,13 @@ const SPECIAL: Array<{ words: string; label: string; detail: string; icon: strin
   { words: 'codebase projet code recherche semantique index', label: 'Codebase', detail: 'Extraits du projet les plus pertinents pour la question', icon: 'database', item: { kind: 'codebase' } },
   { words: 'problemes erreurs diagnostics problems', label: 'Problèmes', detail: 'Erreurs et avertissements de l’éditeur', icon: 'warning', item: { kind: 'problems' } },
   { words: 'git diff modifications changements', label: 'Modifications Git', detail: 'Diff par rapport au dernier commit', icon: 'git-compare', item: { kind: 'git' } },
-  { words: 'terminal sortie console', label: 'Terminal', detail: 'Dernières lignes du terminal actif', icon: 'terminal', item: { kind: 'terminal' } }
+  { words: 'terminal sortie console', label: 'Terminal', detail: 'Dernières lignes du terminal actif', icon: 'terminal', item: { kind: 'terminal' } },
+  { words: 'web internet recherche google en ligne', label: 'Web', detail: 'Recherche sur Internet avec la question', icon: 'globe', item: { kind: 'web' } }
 ]
 
 function useMentionOptions(query: string | null): MentionOption[] {
   const workspace = useIde((s) => s.workspace)
+  const docs = useWeb((s) => s.docs)
   const [files, setFiles] = useState<string[]>([])
   useEffect(() => {
     if (query !== null && workspace) void getFileIndex().then(setFiles)
@@ -70,6 +75,13 @@ function useMentionOptions(query: string | null): MentionOption[] {
       icon: s.icon,
       item: s.item
     }))
+    const docOpts: MentionOption[] = docs
+      .filter((d) => !q || `docs documentation ${d.name.toLowerCase()}`.split(/\s+/).some((w) => w.startsWith(q)))
+      .map((d) => ({ key: `doc:${d.id}`, label: d.name, detail: `Documentation · ${d.pages} page(s)`, icon: 'book', item: { kind: 'docs', id: d.id, name: d.name } }))
+    const urlOpts: MentionOption[] = /^https?:\/\/\S+\.\S+/.test(query)
+      ? [{ key: `url:${query}`, label: query.replace(/^https?:\/\//, ''), detail: 'Page web', icon: 'link', item: { kind: 'url', url: query } }]
+      : []
+    if (urlOpts.length) return urlOpts
     const folders = new Set<string>()
     for (const f of files) {
       let d = dirname(f)
@@ -92,8 +104,8 @@ function useMentionOptions(query: string | null): MentionOption[] {
       icon: 'folder',
       item: { kind: 'folder', path: d }
     }))
-    return [...special, ...fileOpts, ...folderOpts].slice(0, 40)
-  }, [query, files, workspace])
+    return [...special, ...docOpts, ...fileOpts, ...folderOpts].slice(0, 40)
+  }, [query, files, workspace, docs])
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +114,7 @@ function useMentionOptions(query: string | null): MentionOption[] {
 
 function ContextChip({ item, onRemove, dim, onClick, title }: { item: ContextItem; onRemove?: () => void; dim?: boolean; onClick?: () => void; title?: string }) {
   return (
-    <span className={`context-chip${dim ? ' dim' : ''}`} title={title ?? (item.kind === 'file' || item.kind === 'folder' || item.kind === 'selection' ? item.path : contextLabel(item))} onClick={onClick}>
+    <span className={`context-chip${dim ? ' dim' : ''}`} title={title ?? (item.kind === 'file' || item.kind === 'folder' || item.kind === 'selection' ? item.path : item.kind === 'url' ? item.url : contextLabel(item))} onClick={onClick}>
       <Icon name={contextIcon(item)} />
       <span className="context-chip-label">{contextLabel(item)}</span>
       {onRemove && (
@@ -205,7 +217,7 @@ function EmptyState() {
         <>
           <h3>Posez une question sur votre code</h3>
           <p className="muted">
-            Tapez <kbd>@</kbd> pour joindre des fichiers, des dossiers, les problèmes, le diff Git ou le terminal. Sélectionnez du code puis{' '}
+            Tapez <kbd>@</kbd> pour joindre des fichiers, des dossiers, les problèmes, le diff Git, le terminal, le web, une documentation ou une adresse (<code>@https://…</code>). Sélectionnez du code puis{' '}
             <kbd>Ctrl+L</kbd> pour l’ajouter à la conversation.
           </p>
         </>
@@ -468,6 +480,7 @@ function ChatInput({ conv }: { conv?: Conversation }) {
           </span>
         )}
         <ModelSelect conv={conv} />
+        {conv && <ContextGauge conv={conv} disabled={streaming} onError={setError} />}
         <span className="muted small">{pendingContexts().length > 0 ? `${pendingContexts().length} élément(s) joint(s)` : ''}</span>
         {streaming ? (
           <button className="btn send-button" title="Arrêter la génération" onClick={stopStreaming}>
@@ -479,6 +492,46 @@ function ChatInput({ conv }: { conv?: Conversation }) {
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Remplissage du contexte du modèle ; un clic résume la conversation. */
+function ContextGauge({ conv, disabled, onError }: { conv: Conversation; disabled: boolean; onError: (e: string | null) => void }) {
+  const compacting = useChat((s) => s.compactingId === conv.id)
+  useAi((s) => s.providers)
+  const usage = contextUsage(conv)
+  if (!usage || usage.used === 0) return null
+  const pct = Math.min(100, Math.round((usage.used / usage.window) * 100))
+  return (
+    <button
+      className={`context-gauge${pct >= 80 ? ' high' : pct >= 50 ? ' mid' : ''}`}
+      disabled={disabled || compacting}
+      title={`Contexte utilisé : ${formatTokens(usage.used)} / ${formatTokens(usage.window)} jetons. Cliquez pour résumer la conversation et libérer de la place.`}
+      onClick={() => {
+        onError(null)
+        compactActive().catch((err: unknown) => onError(err instanceof Error ? err.message : String(err)))
+      }}
+    >
+      <span className="context-gauge-ring" style={{ ['--pct' as string]: `${pct}%` }} />
+      {compacting ? 'Résumé…' : `${pct} %`}
+    </button>
+  )
+}
+
+function SummaryDivider({ conv }: { conv: Conversation }) {
+  const [open, setOpen] = useState(false)
+  const summary = conv.summary!
+  return (
+    <div className="summary-divider">
+      <button className="link-button" onClick={() => setOpen(!open)} title="Afficher le résumé envoyé au modèle">
+        <Icon name={open ? 'chevron-down' : 'chevron-right'} /> Conversation résumée ici ({formatTokens(summary.tokensBefore)} jetons condensés)
+      </button>
+      {open && (
+        <div className="summary-text">
+          <Markdown text={summary.text} />
+        </div>
+      )}
     </div>
   )
 }
@@ -519,6 +572,7 @@ export function ChatPanel() {
   const width = useChat((s) => s.width)
   const view = useChat((s) => s.view)
   const conv = useChat((s) => s.conversations.find((c) => c.id === s.activeId))
+  const compacting = useChat((s) => !!s.activeId && s.compactingId === s.activeId)
   const listRef = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
 
@@ -578,16 +632,29 @@ export function ChatPanel() {
           >
             {turns.length === 0 && <EmptyState />}
             {turns.map((t, i) => {
+              const divider = conv?.summary?.turnId === t.id ? <SummaryDivider key={`sum-${t.id}`} conv={conv} /> : null
               if (t.role === 'user') return <UserMessage key={t.id} turn={t} />
-              if (!t.steps) return <AssistantMessage key={t.id} turn={t} last={t === lastAssistant} />
+              if (!t.steps)
+                return (
+                  <div key={t.id}>
+                    <AssistantMessage turn={t} last={t === lastAssistant} />
+                    {divider}
+                  </div>
+                )
               const userTurn = turns[i - 1]?.role === 'user' ? (turns[i - 1] as UserTurn) : undefined
               return (
                 <div key={t.id} className="agent-turn">
                   <AgentAssistantTurn convId={conv!.id} turn={t} last={t === lastAssistant} />
                   {userTurn && t.status !== 'streaming' && <ChangedFiles convId={conv!.id} turn={userTurn} />}
+                  {divider}
                 </div>
               )
             })}
+            {compacting && (
+              <div className="chat-notice compacting">
+                <Icon name="loading" className="codicon-modifier-spin" /> Résumé de la conversation pour libérer de la place…
+              </div>
+            )}
           </div>
           <ChatInput conv={conv} />
         </>

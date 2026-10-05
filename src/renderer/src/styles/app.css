@@ -3031,3 +3031,101 @@ textarea.mcp-json {
 .install-hint {
   user-select: text;
 }
+
+/* --- Web et documentation ------------------------------------------------------ */
+
+.inline-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.setting-control code {
+  margin-right: 8px;
+}
+
+.doc-list {
+  margin: 8px 0;
+}
+
+.doc-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.doc-add input[type='number'] {
+  width: 64px;
+}
+
+/* --- Résumé des conversations --------------------------------------------------- */
+
+.context-gauge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.context-gauge:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+.context-gauge-ring {
+  --gauge: var(--fg-muted);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: conic-gradient(var(--gauge) var(--pct), var(--bg-active) 0);
+}
+
+.context-gauge.mid .context-gauge-ring {
+  --gauge: var(--accent);
+}
+
+.context-gauge.high {
+  color: var(--warning, #cca700);
+}
+
+.context-gauge.high .context-gauge-ring {
+  --gauge: var(--warning, #cca700);
+}
+
+.summary-divider {
+  margin: 10px 0;
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+  font-size: 12px;
+}
+
+.summary-divider .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+}
+
+.summary-text {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  max-height: 320px;
+  overflow: auto;
+}
+
+.chat-notice.compacting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

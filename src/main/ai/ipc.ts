@@ -29,10 +29,17 @@ const electronEncryptor: Encryptor = {
 }
 
 const controllers = new Map<string, AbortController>()
+let keyStore: KeyStore | null = null
+
+/** Coffre des clés (fournisseurs d'IA et moteurs de recherche). */
+export function getKeyStore(): KeyStore {
+  keyStore ??= new KeyStore(join(app.getPath('userData'), 'api-keys.json'), electronEncryptor)
+  return keyStore
+}
 
 export function registerAiHandlers(getContents: () => WebContents | null, getSettings: () => Promise<Settings>): AiService {
   const service = new AiService({
-    keys: new KeyStore(join(app.getPath('userData'), 'api-keys.json'), electronEncryptor),
+    keys: getKeyStore(),
     getSettings: async () => (await getSettings()).ai,
     modelCache: new JsonStore<ModelCache>('models-cache', {}),
     usage: new JsonStore<UsageStats>('usage', {}),

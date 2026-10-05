@@ -5,6 +5,7 @@ import { AiSettingsSection } from './AiSettings'
 import { IndexSettings } from './IndexSettings'
 import { McpSettings } from './McpSettings'
 import { LspSettings } from './LspSettings'
+import { WebSettings } from './WebSettings'
 import { commands } from '../lib/commands'
 import { formatKeybinding } from '../lib/keybindings'
 
@@ -44,7 +45,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai' | 'index' | 'mcp' | 'lsp'
+type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai' | 'index' | 'mcp' | 'lsp' | 'web'
 
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'Général' },
@@ -54,6 +55,7 @@ const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'files', label: 'Fichiers' },
   { id: 'ai', label: 'Modèles et clés API' },
   { id: 'index', label: 'Indexation du code' },
+  { id: 'web', label: 'Web et documentation' },
   { id: 'mcp', label: 'Serveurs MCP' },
   { id: 'shortcuts', label: 'Raccourcis clavier' }
 ]
@@ -171,6 +173,7 @@ export function SettingsPage() {
         {section === 'index' && <IndexSettings />}
         {section === 'mcp' && <McpSettings />}
         {section === 'lsp' && <LspSettings />}
+        {section === 'web' && <WebSettings />}
 
         {section === 'shortcuts' && (
           <>

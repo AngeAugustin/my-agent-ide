@@ -11,6 +11,7 @@ import { loadAi } from './store/ai'
 import { initCodeIndex } from './store/codeIndex'
 import { initGit } from './store/git'
 import { initMcp } from './store/mcp'
+import { initWeb } from './store/web'
 import { initLsp } from './lib/lsp'
 import { commands, runCommand } from './lib/commands'
 import { onDirtyChange } from './lib/editorModels'
@@ -77,6 +78,7 @@ export function App() {
         initCodeIndex()
         initGit()
         initMcp()
+        initWeb()
         initLsp()
         return loadAi()
       })

@@ -407,6 +407,9 @@ export function AiSettingsSection() {
   const showReasoning = useIde((s) => s.settings.showReasoning)
   const autocomplete = useIde((s) => s.settings.autocomplete)
   const autocompleteDelay = useIde((s) => s.settings.autocompleteDelay)
+  const nextEdit = useIde((s) => s.settings.nextEdit)
+  const autoCompact = useIde((s) => s.settings.autoCompact)
+  const compactThreshold = useIde((s) => s.settings.compactThreshold)
 
   useEffect(() => {
     void loadAi()
@@ -489,6 +492,55 @@ export function AiSettingsSection() {
                 if (v >= 50 && v <= 3000) void updateSettings({ autocompleteDelay: v })
               }}
             />
+          </div>
+        </div>
+      )}
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Prédiction de la prochaine modification</div>
+          <div className="setting-description">
+            Après une modification, propose la suivante ailleurs dans le fichier (renommage à propager, appel à adapter…) : <kbd>Tab</kbd> pour
+            y aller puis pour l’accepter, <kbd>Échap</kbd> pour l’ignorer. Utilise le modèle d’autocomplétion.
+          </div>
+        </div>
+        <div className="setting-control">
+          <label className="switch">
+            <input type="checkbox" aria-label="Prédiction de la prochaine modification" checked={nextEdit} onChange={(e) => void updateSettings({ nextEdit: e.target.checked })} />
+            <span className="switch-track" />
+          </label>
+        </div>
+      </div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Résumer les longues conversations</div>
+          <div className="setting-description">
+            Quand l’historique approche de la limite du modèle, il est remplacé par un résumé rédigé par le modèle (chat et agent). La jauge sous la
+            zone de saisie permet aussi de résumer à la demande.
+          </div>
+        </div>
+        <div className="setting-control">
+          <label className="switch">
+            <input type="checkbox" aria-label="Résumer les longues conversations" checked={autoCompact} onChange={(e) => void updateSettings({ autoCompact: e.target.checked })} />
+            <span className="switch-track" />
+          </label>
+        </div>
+      </div>
+      {autoCompact && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-title">Seuil de résumé</div>
+            <div className="setting-description">Part de la fenêtre de contexte du modèle à partir de laquelle la conversation est résumée.</div>
+          </div>
+          <div className="setting-control">
+            <select aria-label="Seuil de résumé" value={String(compactThreshold)} onChange={(e) => void updateSettings({ compactThreshold: Number(e.target.value) })}>
+              {[0.6, 0.7, 0.8, 0.9].map((v) => (
+                <option key={v} value={String(v)}>
+                  {Math.round(v * 100)} %
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       )}

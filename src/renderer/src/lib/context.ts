@@ -13,6 +13,9 @@ export type ContextItem =
   | { kind: 'git' }
   | { kind: 'terminal' }
   | { kind: 'codebase' }
+  | { kind: 'web' }
+  | { kind: 'docs'; id: string; name: string }
+  | { kind: 'url'; url: string }
   | { kind: 'image'; name: string; mediaType: string; data: string }
 
 export function contextKey(item: ContextItem): string {
@@ -24,6 +27,10 @@ export function contextKey(item: ContextItem): string {
       return `selection:${item.path}:${item.startLine}-${item.endLine}`
     case 'image':
       return `image:${item.name}:${item.data.length}`
+    case 'docs':
+      return `docs:${item.id}`
+    case 'url':
+      return `url:${item.url}`
     default:
       return item.kind
   }
@@ -50,6 +57,12 @@ export function contextLabel(item: ContextItem): string {
       return 'Terminal'
     case 'codebase':
       return 'Codebase'
+    case 'web':
+      return 'Web'
+    case 'docs':
+      return item.name
+    case 'url':
+      return item.url.replace(/^https?:\/\//, '').slice(0, 40)
     case 'image':
       return item.name
   }
@@ -64,6 +77,9 @@ export function contextIcon(item: ContextItem): string {
     git: 'git-compare',
     terminal: 'terminal',
     codebase: 'database',
+    web: 'globe',
+    docs: 'book',
+    url: 'link',
     image: 'file-media'
   }[item.kind]
 }
@@ -140,9 +156,36 @@ export async function resolveContext(item: ContextItem, question = ''): Promise<
         : 'Aucun extrait pertinent trouvé dans l’index.'
       return { label: 'Codebase', text: `<extraits_du_projet>\n${body}\n</extraits_du_projet>` }
     }
+    case 'web': {
+      // Recherche avec la question, puis lecture des premières pages trouvées.
+      const results = await window.api.web.search(question, 6)
+      const pages = await Promise.all(results.slice(0, 3).map((r) => window.api.web.fetch(r.url, 8000).catch(() => null)))
+      const body = results
+        .map((r, i) => {
+          const page = pages[i]
+          return `<resultat titre="${attr(r.title)}" url="${r.url}">\n${page ? page.text : r.snippet}\n</resultat>`
+        })
+        .join('\n\n')
+      return { label: 'Web', text: `<recherche_web requete="${attr(question.slice(0, 200))}">\n${body || 'Aucun résultat.'}\n</recherche_web>\nCite les adresses (url) des sources que tu utilises.` }
+    }
+    case 'docs': {
+      const hits = await window.api.docs.search([item.id], question, 8)
+      const body = hits.length
+        ? hits.map((h) => `<extrait page="${attr(h.title)}" url="${h.url}">\n${h.text}\n</extrait>`).join('\n\n')
+        : 'Aucun extrait pertinent trouvé (la documentation est peut-être encore en cours d’indexation).'
+      return { label: item.name, text: `<documentation nom="${attr(item.name)}">\n${body}\n</documentation>` }
+    }
+    case 'url': {
+      const page = await window.api.web.fetch(item.url, 40_000)
+      return { label: contextLabel(item), text: `<page_web url="${page.url}" titre="${attr(page.title)}">\n${page.text}\n</page_web>`, truncated: page.truncated }
+    }
     case 'image':
       return null
   }
+}
+
+function attr(text: string): string {
+  return text.replace(/"/g, '\'').replace(/\s+/g, ' ')
 }
 
 /** Sélection courante de l'éditeur, sous forme d'élément de contexte. */

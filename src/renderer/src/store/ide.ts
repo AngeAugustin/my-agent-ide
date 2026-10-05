@@ -184,7 +184,8 @@ export async function initialize(): Promise<void> {
       agent: { ...DEFAULT_SETTINGS.agent, ...settings.agent },
       mcpServers: settings.mcpServers ?? {},
       mcpProjectEnabled: settings.mcpProjectEnabled ?? {},
-      lsp: { ...DEFAULT_SETTINGS.lsp, ...settings.lsp }
+      lsp: { ...DEFAULT_SETTINGS.lsp, ...settings.lsp },
+      web: { ...DEFAULT_SETTINGS.web, ...settings.web }
     },
     recentWorkspaces: session.recentWorkspaces ?? []
   })

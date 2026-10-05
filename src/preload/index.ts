@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { ChatEvent } from '@shared/ai'
 import type { IndexStatus } from '@shared/codeindex'
 import type { McpServerStatus } from '@shared/mcp'
+import type { DocStatus } from '@shared/web'
 import type { FsChangeEvent, IdeApi } from '@shared/types'
 
 function on<T extends unknown[]>(channel: string, cb: (...args: T) => void): () => void {
@@ -105,6 +106,21 @@ const api: IdeApi = {
     reconnect: (source, name, root) => ipcRenderer.invoke('mcp:reconnect', source, name, root),
     call: (source, server, tool, args) => ipcRenderer.invoke('mcp:call', source, server, tool, args),
     onStatus: (cb) => on<[McpServerStatus[]]>('mcp:status', cb)
+  },
+  web: {
+    search: (query, count) => ipcRenderer.invoke('web:search', query, count),
+    fetch: (url, maxChars) => ipcRenderer.invoke('web:fetch', url, maxChars),
+    keys: () => ipcRenderer.invoke('web:keys'),
+    setKey: (id, key) => ipcRenderer.invoke('web:setKey', id, key),
+    deleteKey: (id) => ipcRenderer.invoke('web:deleteKey', id)
+  },
+  docs: {
+    list: () => ipcRenderer.invoke('docs:list'),
+    add: (name, url, maxPages) => ipcRenderer.invoke('docs:add', name, url, maxPages),
+    remove: (id) => ipcRenderer.invoke('docs:remove', id),
+    reindex: (id) => ipcRenderer.invoke('docs:reindex', id),
+    search: (ids, query, limit) => ipcRenderer.invoke('docs:search', ids, query, limit),
+    onStatus: (cb) => on<[DocStatus[]]>('docs:status', cb)
   },
   agent: {
     run: (id, command, cwd, timeoutSeconds) => ipcRenderer.invoke('agent:run', id, command, cwd, timeoutSeconds),

@@ -170,6 +170,27 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         return { output: truncateOutput(body), isError: false }
       }
 
+      case 'web_search': {
+        const results = await window.api.web.search(String(input.query), Math.min(Math.max(Number(input.count ?? 6), 1), 10))
+        if (results.length === 0) return { output: 'Aucun résultat.', isError: false }
+        return { output: results.map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`).join('\n\n'), isError: false }
+      }
+
+      case 'fetch_url': {
+        const page = await window.api.web.fetch(String(input.url), 30_000)
+        return { output: `# ${page.title}\n(${page.url})\n\n${page.text}`, isError: false, summary: { command: page.url } }
+      }
+
+      case 'docs_search': {
+        const docs = await window.api.docs.list()
+        const name = typeof input.source === 'string' ? input.source.trim().toLowerCase() : ''
+        const ids = name ? docs.filter((d) => d.name.toLowerCase() === name).map((d) => d.id) : []
+        if (name && ids.length === 0) return { output: `Documentation inconnue : « ${input.source} ». Disponibles : ${docs.map((d) => d.name).join(', ') || 'aucune'}.`, isError: true }
+        const hits = await window.api.docs.search(ids, String(input.query), 8)
+        if (hits.length === 0) return { output: 'Aucun extrait pertinent trouvé.', isError: false }
+        return { output: truncateOutput(hits.map((h) => `--- ${h.sourceName} › ${h.title}\n${h.url}\n${h.text}`).join('\n\n')), isError: false }
+      }
+
       case 'find_files': {
         const pattern = String(input.pattern).trim()
         const files = (await getFileIndex()).map((f) => rel(ctx.root, f))
@@ -318,6 +339,12 @@ export function describeTool(call: ToolCall): { icon: string; label: string } {
       return { icon: 'trash', label: `Suppression de ${path}` }
     case 'run_command':
       return { icon: 'terminal', label: String(input.command ?? '') }
+    case 'web_search':
+      return { icon: 'globe', label: `Recherche web : « ${String(input.query ?? '')} »` }
+    case 'fetch_url':
+      return { icon: 'link', label: `Lecture de ${String(input.url ?? '')}` }
+    case 'docs_search':
+      return { icon: 'book', label: `Documentation${input.source ? ` ${String(input.source)}` : ''} : « ${String(input.query ?? '')} »` }
     case 'get_problems':
       return { icon: 'warning', label: path ? `Problèmes de ${basename(path)}` : 'Lecture des problèmes' }
     default:

@@ -1,9 +1,9 @@
 import { create } from 'zustand'
-import type { ChatMessage, ContentPart, ModelRef } from '@shared/ai'
+import type { ChatMessage, ModelRef } from '@shared/ai'
 import { agentSystemPrompt } from '@shared/agent'
-import { agentStepMessages, type AgentStep } from '../lib/agentHistory'
+import { agentStepMessages, toApiMessages, type AgentStep } from '../lib/agentHistory'
 import { rulesSection } from '../lib/rules'
-export { agentStepMessages }
+export { agentStepMessages, toApiMessages }
 export type { AgentStep, AgentToolRun, ToolRunStatus } from '../lib/agentHistory'
 import { streamChat, type ChatHandle } from '../lib/ai'
 import { contextKey, resolveContext, type ContextItem } from '../lib/context'
@@ -13,6 +13,9 @@ import { buildUserMessage, chatSystemPrompt, type ResolvedContext } from '../lib
 import { isInside, relative } from '../lib/paths'
 import { useIde } from './ide'
 import { stopReasonNotice } from '@shared/ai'
+import { estimateTokens, type ConversationSummary } from '@shared/compaction'
+import { contextWindow, needsCompaction, summarizeHistory } from '../lib/compaction'
+import { formatTokens } from '../lib/ai'
 
 export interface UserTurn {
   id: string
@@ -38,6 +41,8 @@ export interface AssistantTurn {
   notices: string[]
   providerData?: ChatMessage['providerData']
   usage?: { inputTokens: number; outputTokens: number }
+  /** Taille du contexte envoyé lors de la dernière requête (jetons d'entrée). */
+  contextTokens?: number
   /** Mode Agent : étapes successives (le texte final est celui de la dernière étape). */
   steps?: AgentStep[]
 }
@@ -56,6 +61,8 @@ export interface Conversation {
   mode?: 'chat' | 'agent'
   /** Note ajoutée au prochain message (ex. fichiers restaurés), pour garder l'historique en ajout seul. */
   pendingNote?: string
+  /** Résumé remplaçant le début de l'historique (conversation trop longue). */
+  summary?: ConversationSummary
   turns: Turn[]
 }
 
@@ -70,6 +77,8 @@ interface ChatState {
   /** Inclure automatiquement le fichier actif. */
   includeActiveFile: boolean
   streamingId: string | null
+  /** Conversation en cours de résumé. */
+  compactingId: string | null
   focusNonce: number
   loadedFor: string | null | undefined
   /** Mode choisi pour la prochaine nouvelle conversation. */
@@ -85,6 +94,7 @@ export const useChat = create<ChatState>()(() => ({
   draftContexts: [],
   includeActiveFile: true,
   streamingId: null,
+  compactingId: null,
   focusNonce: 0,
   loadedFor: undefined,
   mode: 'chat'
@@ -224,24 +234,63 @@ export function updateTurn(convId: string, turnId: string, fn: (t: AssistantTurn
   }))
 }
 
-/** Reconstitue l'historique envoyé au modèle (tours terminés uniquement, contenu inchangé). */
-export function toApiMessages(turns: Turn[]): ChatMessage[] {
-  const out: ChatMessage[] = []
-  for (const t of turns) {
-    if (t.role === 'user') {
-      const content: ContentPart[] | string = t.images.length
-        ? [{ type: 'text', text: t.sent }, ...t.images.map((i) => ({ type: 'image' as const, mediaType: i.mediaType, data: i.data }))]
-        : t.sent
-      out.push({ role: 'user', content })
-    } else if (t.steps) {
-      out.push(...agentStepMessages(t.steps))
-    } else if (t.text || t.providerData) {
-      // Une réponse interrompue n'a pas de contenu natif complet : on n'en garde que le texte.
-      out.push({ role: 'assistant', content: t.text, ...(t.status === 'done' && t.providerData ? { providerData: t.providerData } : {}) })
-    }
-  }
-  return out
+function lastContextTokens(turns: Turn[]): number {
+  const last = [...turns].reverse().find((t): t is AssistantTurn => t.role === 'assistant')
+  return last?.contextTokens ?? last?.usage?.inputTokens ?? 0
 }
+
+let compactHandle: ChatHandle | null = null
+
+/**
+ * Résume tous les tours terminés d'une conversation. Renvoie faux si le résumé a échoué
+ * (l'historique complet est alors conservé).
+ */
+export async function compactConversation(convId: string, opts: { manual?: boolean } = {}): Promise<'ok' | 'failed' | 'aborted'> {
+  const conv = get().conversations.find((c) => c.id === convId)
+  if (!conv || get().compactingId) return 'failed'
+  const model = conv.model ?? useIde.getState().settings.ai.models.chat
+  const last = [...conv.turns].reverse().find((t): t is AssistantTurn => t.role === 'assistant' && t.status !== 'streaming')
+  if (!model || !last) return 'failed'
+  const covered = conv.turns.slice(0, conv.turns.indexOf(last) + 1)
+  if (conv.summary?.turnId === last.id && conv.summary.stepCount === (last.steps?.length ?? 0)) return 'ok'
+  const messages = toApiMessages(covered, conv.summary)
+  set({ compactingId: convId })
+  const res = await summarizeHistory(model, messages, (h) => {
+    compactHandle = h
+  })
+  set({ compactingId: null })
+  if (!res.ok) {
+    if (!res.aborted && opts.manual) throw new Error(`Résumé impossible : ${res.message}`)
+    return res.aborted ? 'aborted' : 'failed'
+  }
+  const tokensBefore = Math.max(estimateTokens(messages, conv.system), opts.manual ? 0 : lastContextTokens(covered))
+  updateConversation(convId, (c) => ({
+    ...c,
+    summary: { text: res.text, turnId: last.id, stepCount: last.steps?.length ?? 0, createdAt: Date.now(), tokensBefore }
+  }))
+  return 'ok'
+}
+
+export function stopCompaction(): void {
+  compactHandle?.abort()
+}
+
+/** Résume la conversation active à la demande de l'utilisateur. */
+export async function compactActive(): Promise<void> {
+  const conv = activeConversation()
+  if (!conv || get().streamingId) return
+  await compactConversation(conv.id, { manual: true })
+}
+
+/** Libellé de l'indicateur de remplissage du contexte. */
+export function contextUsage(conv: Conversation): { used: number; window: number } | null {
+  const model = conv.model
+  if (!model) return null
+  const used = Math.max(lastContextTokens(conv.turns.filter((t) => !conv.summary || conv.turns.indexOf(t) > conv.turns.findIndex((x) => x.id === conv.summary!.turnId))), 0)
+  return { used, window: contextWindow(model) }
+}
+
+export { formatTokens }
 
 function osName(): string {
   const p = window.api.platform
@@ -345,7 +394,29 @@ export async function sendMessage(text: string): Promise<void> {
   updateConversation(convId, (c) => ({ ...c, updatedAt: Date.now(), pendingNote: undefined, turns: [...c.turns, userTurn, assistant] }))
   set({ draftContexts: [], streamingId: assistant.id })
 
-  const turns = activeConversation()!.turns.filter((t) => t.id !== assistant.id)
+  let turns = activeConversation()!.turns.filter((t) => t.id !== assistant.id)
+  // Historique trop long pour le modèle : on résume les tours précédents avant d'envoyer.
+  const previous = turns.filter((t) => t.id !== userTurn.id)
+  const current = activeConversation()!
+  if (previous.length && needsCompaction(model, toApiMessages(turns, current.summary), current.system, lastContextTokens(previous) + estimateTokens([{ role: 'user', content: userTurn.sent }]))) {
+    const outcome = await compactConversation(convId)
+    if (outcome === 'aborted') {
+      updateTurn(convId, assistant.id, (t) => ({ ...t, status: 'stopped' }))
+      set({ streamingId: null })
+      return
+    }
+    const summary = get().conversations.find((c) => c.id === convId)?.summary
+    updateTurn(convId, assistant.id, (t) => ({
+      ...t,
+      notices: [
+        ...t.notices,
+        outcome === 'ok'
+          ? `Conversation résumée pour libérer de la place (environ ${formatTokens(summary?.tokensBefore ?? 0)} jetons condensés).`
+          : 'La conversation approche de la limite du modèle et n’a pas pu être résumée : commencez une nouvelle conversation si la requête échoue.'
+      ]
+    }))
+    turns = get().conversations.find((c) => c.id === convId)!.turns.filter((t) => t.id !== assistant.id)
+  }
   if (mode === 'agent') await agentRunner!(convId, assistant.id, userTurn.id, model, turns)
   else await runAssistant(convId, assistant.id, model, turns)
 }
@@ -399,7 +470,7 @@ async function runAssistant(convId: string, turnId: string, model: ModelRef, tur
       providerId: model.providerId,
       model: model.modelId,
       system: conv.system,
-      messages: toApiMessages(turns),
+      messages: toApiMessages(turns, conv.summary),
       showReasoning: useIde.getState().settings.showReasoning
     },
     (ev) => {
@@ -422,6 +493,7 @@ async function runAssistant(convId: string, turnId: string, model: ModelRef, tur
         status: 'done',
         providerData: result.message.providerData,
         usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+        contextTokens: result.inputTokens,
         notices: notice ? [...t.notices, notice] : t.notices
       }
     }
@@ -433,6 +505,7 @@ async function runAssistant(convId: string, turnId: string, model: ModelRef, tur
 
 export function stopStreaming(): void {
   handle?.abort()
+  compactHandle?.abort()
   agentStopper?.()
 }
 

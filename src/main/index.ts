@@ -6,7 +6,8 @@ import {
   type SessionState,
   type Settings
 } from '@shared/types'
-import { abortAllChats, registerAiHandlers } from './ai/ipc'
+import { abortAllChats, getKeyStore, registerAiHandlers } from './ai/ipc'
+import { registerWebHandlers, stopDocs } from './web/ipc'
 import { killAllAgentCommands, registerAgentHandlers } from './agentCommands'
 import { registerChatHandlers } from './chats'
 import { registerGitHandlers } from './git'
@@ -125,6 +126,7 @@ app.whenReady().then(() => {
   const ai = registerAiHandlers(getContents, () => settingsStore.get())
   registerIndexHandlers(getContents, () => settingsStore.get(), ai)
   registerChatHandlers()
+  registerWebHandlers(getContents, () => settingsStore.get(), getKeyStore())
   registerGitHandlers()
   registerMcpHandlers(getContents, () => settingsStore.get())
   registerLspHandlers(getContents, () => settingsStore.get())
@@ -139,6 +141,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   abortAllChats()
+  stopDocs()
   killAllAgentCommands()
   void closeAllMcp()
   stopAllLsp()
