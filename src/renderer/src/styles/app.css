@@ -3129,3 +3129,41 @@ textarea.mcp-json {
   align-items: center;
   gap: 6px;
 }
+
+/* --- Prédiction de la prochaine modification --------------------------------------- */
+
+.next-edit-removed {
+  background: rgba(220, 70, 70, 0.18);
+}
+
+.next-edit-removed-text {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.next-edit-gutter {
+  border-left: 3px solid #d16969;
+}
+
+.next-edit-added {
+  background: rgba(80, 180, 100, 0.16);
+  border-left: 3px solid #4caf50;
+  padding-left: 4px;
+  white-space: pre;
+  color: var(--fg);
+  opacity: 0.9;
+  font-style: italic;
+}
+
+.next-edit-hint {
+  margin-left: 12px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.9;
+}

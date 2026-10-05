@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffLines, diffStats } from '../src/renderer/src/lib/diff'
+import { diffLines, diffStats } from '../src/shared/diff'
 import { extractCode, hasElisionMarkers, parseFenceInfo } from '../src/renderer/src/lib/codeBlocks'
 import { buildUserMessage, fileBlock, inlineEditPrompt } from '../src/renderer/src/lib/prompts'
 

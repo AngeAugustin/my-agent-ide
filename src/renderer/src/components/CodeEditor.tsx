@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { monaco, languageLabel } from '../lib/monaco'
 import * as models from '../lib/editorModels'
 import { setActiveEditor } from '../lib/activeEditor'
+import { attachNextEdit } from '../lib/nextEdit'
 import { pinTab, saveTab, setCursor, useIde } from '../store/ide'
 
 /** Éditeur Monaco unique : on y échange les modèles quand l'onglet actif change. */
@@ -37,6 +38,7 @@ export function CodeEditor({ path }: { path: string | null }) {
     })
     editorRef.current = editor
     setActiveEditor(editor)
+    const detachNextEdit = attachNextEdit(editor)
 
     const updateCursor = () => {
       const model = editor.getModel()
@@ -73,6 +75,7 @@ export function CodeEditor({ path }: { path: string | null }) {
     ]
 
     return () => {
+      detachNextEdit()
       disposables.forEach((d) => d.dispose())
       if (currentPath.current) models.saveViewState(currentPath.current, editor.saveViewState())
       setActiveEditor(null)

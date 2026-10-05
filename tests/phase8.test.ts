@@ -179,3 +179,58 @@ describe('résumé des conversations', () => {
     expect(estimateTokens([{ role: 'user', content: 'abcd'.repeat(100) }])).toBe(100)
   })
 })
+
+import { computeHunks, nextEditPrompt, parseNextEdit, pickHunk, recordEdit } from '../src/shared/nextEdit'
+
+describe('prédiction de la prochaine modification', () => {
+  const region = ['function total(items) {', '  let somme = 0', '  for (const it of items) somme += it.prix', '  return somme', '}', '', 'console.log(total(liste))']
+
+  it('construit le prompt avec le curseur et les modifications récentes', () => {
+    const p = nextEditPrompt({
+      path: 'a.js',
+      language: 'javascript',
+      edits: [{ path: 'a.js', line: 2, before: ['  let total = 0'], after: ['  let somme = 0'], at: 0 }],
+      regionLines: region,
+      cursor: { line: 1, column: 7 }
+    })
+    expect(p).toContain('-  let total = 0\n+  let somme = 0')
+    expect(p).toContain('  let s<|CURSEUR|>omme = 0')
+  })
+
+  it('analyse la réponse du modèle', () => {
+    expect(parseNextEdit('<aucune/>')).toBeNull()
+    expect(parseNextEdit('bla')).toBeNull()
+    expect(parseNextEdit('<region>\n```js\na\nb<|CURSEUR|>\n```\n</region>')).toEqual(['a', 'b'])
+  })
+
+  it('isole le changement proposé le plus proche du curseur', () => {
+    const proposed = [...region]
+    proposed[3] = '  return Math.round(somme)'
+    proposed[6] = 'console.log(total(liste), "€")'
+    const hunks = computeHunks(region, proposed)
+    expect(hunks).toEqual([
+      { start: 3, deleteCount: 1, insert: ['  return Math.round(somme)'] },
+      { start: 6, deleteCount: 1, insert: ['console.log(total(liste), "€")'] }
+    ])
+    expect(pickHunk(region, hunks, 1)?.start).toBe(3)
+    expect(pickHunk(region, hunks, 6)?.start).toBe(6)
+    // Insertion pure
+    expect(computeHunks(['a', 'c'], ['a', 'b', 'c'])).toEqual([{ start: 1, deleteCount: 0, insert: ['b'] }])
+  })
+
+  it('refuse une réécriture trop large', () => {
+    const big = Array.from({ length: 20 }, (_, i) => `l${i}`)
+    const rewritten = big.map((l) => `${l}!`)
+    expect(pickHunk(big, computeHunks(big, rewritten), 0)).toBeNull()
+  })
+
+  it('fusionne la frappe continue sur la même ligne', () => {
+    let h = recordEdit([], { path: 'a', line: 2, before: ['let x'], after: ['let xy'], at: 1000 })
+    h = recordEdit(h, { path: 'a', line: 2, before: ['let xy'], after: ['let xyz'], at: 1500 })
+    expect(h).toEqual([{ path: 'a', line: 2, before: ['let x'], after: ['let xyz'], at: 1500 }])
+    h = recordEdit(h, { path: 'a', line: 9, before: ['b'], after: ['c'], at: 1600 })
+    expect(h).toHaveLength(2)
+    // Retour à l'état initial : la modification disparaît.
+    expect(recordEdit([{ path: 'a', line: 1, before: ['a'], after: ['ab'], at: 0 }], { path: 'a', line: 1, before: ['ab'], after: ['a'], at: 100 })).toEqual([])
+  })
+})
