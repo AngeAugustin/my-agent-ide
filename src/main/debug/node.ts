@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import {
   formatRemoteObject,
   isInspectorNoise,
@@ -195,6 +196,25 @@ export class NodeDebugBackend implements DebugBackend {
     this.emit({ type: 'terminated', exitCode: code })
   }
 
+  /** Chemin réel (liens symboliques résolus) → chemin connu de l'éditeur. */
+  private readonly aliases = new Map<string, string>()
+
+  /**
+   * Node identifie les scripts par leur chemin réel : un dossier atteint par un lien symbolique
+   * (ex. /var → /private/var sous macOS) doit être reconnu sous ses deux formes.
+   */
+  private urlRegexFor(path: string): string {
+    let real = path
+    try {
+      real = realpathSync.native(path)
+    } catch {
+      // fichier introuvable : chemin tel quel
+    }
+    if (real === path) return nodeUrlRegex(path)
+    this.aliases.set(real, path)
+    return `(${nodeUrlRegex(path)})|(${nodeUrlRegex(real)})`
+  }
+
   private async applyBreakpoints(path: string, bps: SourceBreakpoint[]): Promise<BreakpointResult[]> {
     for (const id of this.breakpointIds.get(path) ?? []) await this.send('Debugger.removeBreakpoint', { breakpointId: id }).catch(() => {})
     const ids: string[] = []
@@ -203,7 +223,7 @@ export class NodeDebugBackend implements DebugBackend {
       try {
         const res = await this.send<{ breakpointId: string; locations: unknown[] }>('Debugger.setBreakpointByUrl', {
           lineNumber: bp.line - 1,
-          urlRegex: nodeUrlRegex(path),
+          urlRegex: this.urlRegexFor(path),
           columnNumber: 0,
           condition: bp.condition ?? ''
         })
@@ -242,7 +262,8 @@ export class NodeDebugBackend implements DebugBackend {
   async stackTrace(): Promise<DebugFrame[]> {
     return this.frames.map((f, i) => {
       const url = f.url || this.scripts.get(f.location.scriptId) || ''
-      const path = nodeUrlToPath(url, this.windows)
+      const real = nodeUrlToPath(url, this.windows)
+      const path = real && this.aliases.get(real) ? this.aliases.get(real) : real
       return {
         id: i,
         name: f.functionName || '(anonyme)',

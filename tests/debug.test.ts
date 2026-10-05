@@ -1,5 +1,5 @@
 
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -78,7 +78,15 @@ function collector() {
 
 describe('débogage Node.js', () => {
   it('s’arrête sur un point d’arrêt, inspecte, avance pas à pas et termine', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'dbg-'))
+    // Dossier atteint par un lien symbolique (comme /var → /private/var sous macOS).
+    const realDir = mkdtempSync(join(tmpdir(), 'dbg-'))
+    let dir = realDir
+    try {
+      symlinkSync(realDir, `${realDir}-lien`, 'junction')
+      dir = `${realDir}-lien`
+    } catch {
+      // liens symboliques indisponibles : dossier réel
+    }
     const file = join(dir, 'prog.js')
     writeFileSync(file, ['function somme(a, b) {', '  const total = a + b', '  return total', '}', 'const liste = [1, 2, 3]', 'console.log("début")', 'const r = somme(liste[0], 41)', 'console.log("résultat", r)', ''].join('\n'))
     const c = collector()
