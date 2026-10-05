@@ -10,7 +10,8 @@ function useMarkerCounts(): { errors: number; warnings: number } {
   const [counts, setCounts] = useState({ errors: 0, warnings: 0 })
   useEffect(() => {
     const update = () => {
-      const markers = monaco.editor.getModelMarkers({})
+      // Seuls les fichiers réels comptent (pas les modèles temporaires des vues de différences).
+      const markers = monaco.editor.getModelMarkers({}).filter((m) => m.resource.scheme === 'file')
       setCounts({
         errors: markers.filter((m) => m.severity === monaco.MarkerSeverity.Error).length,
         warnings: markers.filter((m) => m.severity === monaco.MarkerSeverity.Warning).length

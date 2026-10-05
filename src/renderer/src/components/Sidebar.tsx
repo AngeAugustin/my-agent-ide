@@ -1,5 +1,6 @@
 import { openSettings, setSidebarWidth, showSidebarView, useIde, SETTINGS_TAB } from '../store/ide'
 import { toggleTerminalPanel } from '../store/terminals'
+import { toggleChat, useChat } from '../store/chat'
 import { Explorer } from './Explorer'
 import { Icon } from './Icon'
 import { SearchView } from './SearchView'
@@ -9,6 +10,7 @@ export function ActivityBar() {
   const visible = useIde((s) => s.sidebarVisible)
   const settingsActive = useIde((s) => s.activeId === SETTINGS_TAB)
   const panelVisible = useIde((s) => s.panelVisible)
+  const chatVisible = useChat((s) => s.visible)
 
   const item = (id: 'explorer' | 'search', icon: string, title: string) => (
     <button
@@ -27,6 +29,9 @@ export function ActivityBar() {
       {item('search', 'search', 'Recherche (Ctrl+Maj+F)')}
       <button className={`activity-item${panelVisible ? ' active' : ''}`} title="Terminal (Ctrl+`)" aria-label="Terminal" onClick={toggleTerminalPanel}>
         <Icon name="terminal" />
+      </button>
+      <button className={`activity-item${chatVisible ? ' active' : ''}`} title="Chat IA (Ctrl+L)" aria-label="Chat IA" onClick={() => toggleChat()}>
+        <Icon name="comment-discussion" />
       </button>
       <div className="activity-spacer" />
       <button className={`activity-item${settingsActive ? ' active' : ''}`} title="Paramètres (Ctrl+,)" aria-label="Paramètres" onClick={() => openSettings()}>

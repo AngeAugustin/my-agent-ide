@@ -19,6 +19,8 @@ import { StatusBar } from './components/StatusBar'
 import { CommandPalette } from './components/CommandPalette'
 import { ContextMenu } from './components/ContextMenu'
 import { Dialog, Toasts } from './components/Overlays'
+import { ChatPanel } from './components/ChatPanel'
+import { useChat } from './store/chat'
 
 function useGlobalShortcuts(): void {
   useEffect(() => {
@@ -60,6 +62,7 @@ export function App() {
   const ready = useIde((s) => s.ready)
   const theme = useIde((s) => s.settings.theme)
   const sidebarVisible = useIde((s) => s.sidebarVisible)
+  const chatVisible = useChat((s) => s.visible)
 
   useGlobalShortcuts()
   useWindowTitle()
@@ -92,6 +95,7 @@ export function App() {
           <EditorArea />
           <TerminalPanel />
         </div>
+        {chatVisible && <ChatPanel />}
       </div>
       <StatusBar />
       <CommandPalette />

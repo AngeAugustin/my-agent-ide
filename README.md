@@ -2,7 +2,7 @@
 
 Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vous apportez vos propres clés API** (Anthropic, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, Ollama…).
 
-> État : **phase 2 — clés API et fournisseurs**. Le chat et les autres fonctions IA arrivent dans les phases suivantes (voir la feuille de route).
+> État : **phase 3 — chat IA et édition en ligne**. L’autocomplétion et le mode Agent arrivent dans les phases suivantes (voir la feuille de route).
 
 ## Fonctionnalités actuelles
 
@@ -22,6 +22,12 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
   - **un modèle par usage** : chat, édition en ligne, autocomplétion, agent — avec un bouton « Tester » ;
   - choix rapide du modèle de chat depuis la barre d’état ou la palette (« IA : Choisir le modèle de chat ») ;
   - compteur de jetons consommés par fournisseur.
+- **Chat IA** (`Ctrl+L`, panneau de droite) :
+  - réponses en flux, rendu Markdown (sans HTML exécutable), coloration du code, résumé de la réflexion du modèle (repliable) ;
+  - contexte avec `@` : fichiers, dossiers, **problèmes** de l’éditeur, **diff Git**, sortie du **terminal** ; le fichier actif est joint automatiquement (cliquer sur sa puce pour l’exclure) ; sélection ajoutée avec `Ctrl+L` / `Ctrl+Maj+L` ; images collées (`Ctrl+V`) pour les modèles multimodaux ;
+  - sur chaque bloc de code : copier, insérer au curseur, **Appliquer** au fichier indiqué (création ou fusion d’un extrait par le modèle d’édition, puis vue de différences à accepter ou rejeter), coller une commande dans le terminal (sans l’exécuter) ;
+  - choix du modèle par conversation, régénération, arrêt, historique des conversations par dossier.
+- **Édition en ligne** (`Ctrl+K` dans l’éditeur) : décrivez la modification de la sélection (ou le code à générer au curseur) ; la réponse s’écrit directement dans le fichier, puis s’affiche en différences (lignes ajoutées en vert, supprimées barrées) — `Ctrl+Entrée` pour accepter, `Échap` pour rejeter, ou affinez avec une nouvelle instruction. Une seule annulation (`Ctrl+Z`) défait toute la modification.
 - Interface entièrement **en français**.
 
 ## Prérequis
@@ -76,7 +82,7 @@ Sécurité : `contextIsolation` et `sandbox` sont activés, `nodeIntegration` es
 
 1. ✅ **Fondations** : éditeur, explorateur, onglets, terminal, palette, recherche, paramètres
 2. ✅ **Clés API (BYOK)** : gestionnaire de clés chiffrées, couche multi-fournisseurs, choix des modèles
-3. **Chat IA** (`Ctrl+L`) avec contexte `@fichier` / `@dossier` / `@code`, et **édition en ligne** (`Ctrl+K`)
+3. ✅ **Chat IA** (`Ctrl+L`) avec contexte `@`, application des modifications avec diff, et **édition en ligne** (`Ctrl+K`)
 4. **Autocomplétion IA** (Tab)
 5. **Mode Agent** : modifications multi-fichiers, exécution de commandes, points de restauration
 6. **Indexation du code** et recherche sémantique `@codebase`

@@ -21,6 +21,7 @@ import { CodeEditor } from './CodeEditor'
 import { showContextMenu } from './ContextMenu'
 import { Icon } from './Icon'
 import { SettingsPage } from './SettingsPage'
+import { DiffReview } from './DiffReview'
 
 function TabItem({ tab, index }: { tab: Tab; index: number }) {
   const active = useIde((s) => s.activeId === tab.id)
@@ -30,6 +31,8 @@ function TabItem({ tab, index }: { tab: Tab; index: number }) {
   const icon =
     tab.kind === 'settings'
       ? { icon: 'settings-gear', color: 'var(--fg-muted)' }
+      : tab.kind === 'diff'
+        ? { icon: 'diff', color: 'var(--accent)' }
       : tab.kind === 'untitled'
         ? { icon: 'file', color: 'var(--fg-muted)' }
         : fileIcon(tab.id)
@@ -120,7 +123,7 @@ function Breadcrumbs({ path }: { path: string }) {
 function Welcome() {
   const recent = useIde((s) => s.recentWorkspaces)
   const workspace = useIde((s) => s.workspace)
-  const shortcuts = ['palette.commands', 'palette.files', 'view.search', 'view.toggleTerminal', 'settings.open']
+  const shortcuts = ['chat.toggle', 'editor.inlineEdit', 'palette.commands', 'palette.files', 'view.search', 'view.toggleTerminal', 'settings.open']
   return (
     <div className="welcome">
       <div className="welcome-inner">
@@ -180,7 +183,7 @@ export function EditorArea() {
   const tabs = useIde((s) => s.tabs)
   const activeId = useIde((s) => s.activeId)
   const active = tabs.find((t) => t.id === activeId)
-  const editorPath = active && active.kind !== 'settings' ? active.id : null
+  const editorPath = active && (active.kind === 'file' || active.kind === 'untitled') ? active.id : null
 
   return (
     <div className="editor-area">
@@ -197,6 +200,7 @@ export function EditorArea() {
           <CodeEditor path={editorPath} />
         </div>
         {activeId === SETTINGS_TAB && <SettingsPage />}
+        {active?.kind === 'diff' && <DiffReview key={active.id} id={active.id} />}
         {!active && <Welcome />}
       </div>
     </div>

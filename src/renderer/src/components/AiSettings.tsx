@@ -396,6 +396,7 @@ export function AiSettingsSection() {
   const loaded = useAi((s) => s.loaded)
   const providers = useAi((s) => s.providers)
   const storage = useAi((s) => s.storage)
+  const showReasoning = useIde((s) => s.settings.showReasoning)
 
   useEffect(() => {
     void loadAi()
@@ -432,6 +433,19 @@ export function AiSettingsSection() {
           </div>
         </div>
       ))}
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Afficher la réflexion du modèle</div>
+          <div className="setting-description">Montre un résumé du raisonnement dans le chat, quand le modèle le fournit.</div>
+        </div>
+        <div className="setting-control">
+          <label className="switch">
+            <input type="checkbox" aria-label="Afficher la réflexion" checked={showReasoning} onChange={(e) => void updateSettings({ showReasoning: e.target.checked })} />
+            <span className="switch-track" />
+          </label>
+        </div>
+      </div>
 
       <h3>Fournisseurs</h3>
       <div className="provider-list">

@@ -13,6 +13,7 @@ import {
   type TerminalInfo
 } from '../store/terminals'
 import { Icon } from './Icon'
+import { registerTerminal } from '../lib/terminalRegistry'
 
 const DARK_THEME = {
   background: '#18191c',
@@ -118,6 +119,18 @@ function TerminalView({ info, visible }: { info: TerminalInfo; visible: boolean 
       return true
     })
 
+    const unregister = registerTerminal(info.key, {
+      read: (maxLines) => {
+        const buf = term.buffer.active
+        const lines: string[] = []
+        for (let i = Math.max(0, buf.length - maxLines); i < buf.length; i++) lines.push(buf.getLine(i)?.translateToString(true) ?? '')
+        return lines.join('\n').replace(/\n+$/, '')
+      },
+      ptyId: () => ptyRef.current,
+      paste: (text) => term.paste(text),
+      focus: () => term.focus()
+    })
+
     const observer = new ResizeObserver(() => {
       if (ref.current && ref.current.offsetWidth > 0 && ref.current.offsetHeight > 0) {
         try {
@@ -131,6 +144,7 @@ function TerminalView({ info, visible }: { info: TerminalInfo; visible: boolean 
 
     return () => {
       disposed = true
+      unregister()
       observer.disconnect()
       dataSub.dispose()
       resizeSub.dispose()

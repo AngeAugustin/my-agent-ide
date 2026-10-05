@@ -256,6 +256,8 @@ export interface ChatRequest {
   /** Envoyé uniquement s'il est défini (certains modèles le refusent). */
   temperature?: number
   effort?: Effort
+  /** Demande un résumé lisible de la réflexion du modèle, quand le fournisseur le permet. */
+  showReasoning?: boolean
 }
 
 export interface ToolCall {

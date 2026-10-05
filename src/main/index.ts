@@ -7,6 +7,7 @@ import {
   type Settings
 } from '@shared/types'
 import { abortAllChats, registerAiHandlers } from './ai/ipc'
+import { registerChatHandlers } from './chats'
 import { registerFileHandlers, stopWatching } from './files'
 import { buildMenu } from './menu'
 import { JsonStore } from './store'
@@ -115,6 +116,7 @@ app.whenReady().then(() => {
   registerFileHandlers(getContents, async () => (await settingsStore.get()).excludedFolders)
   registerTerminalHandlers(getContents, async () => (await settingsStore.get()).terminalShell)
   registerAiHandlers(getContents, () => settingsStore.get())
+  registerChatHandlers()
   Menu.setApplicationMenu(buildMenu(getContents))
   createWindow()
 

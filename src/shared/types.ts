@@ -61,6 +61,7 @@ export interface Settings {
   autoSaveDelay: number
   terminalFontSize: number
   terminalShell: string
+  showReasoning: boolean
   excludedFolders: string[]
   ai: AiSettings
 }
@@ -79,6 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoSaveDelay: 1000,
   terminalFontSize: 13,
   terminalShell: '',
+  showReasoning: true,
   excludedFolders: ['node_modules', '.git', 'dist', 'out', 'build', '.next', '.venv', '__pycache__'],
   ai: DEFAULT_AI_SETTINGS
 }
@@ -150,6 +152,13 @@ export interface IdeApi {
     chat(requestId: string, request: ChatRequest): Promise<void>
     abort(requestId: string): void
     onEvent(cb: (requestId: string, event: ChatEvent) => void): () => void
+  }
+  chats: {
+    load(workspace: string | null): Promise<unknown>
+    save(workspace: string | null, data: unknown): Promise<void>
+  }
+  git: {
+    diff(cwd: string): Promise<string>
   }
   settings: {
     get(): Promise<Settings>

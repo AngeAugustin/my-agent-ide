@@ -25,6 +25,8 @@ import {
 } from '../store/ide'
 import { killTerminal, newTerminal, toggleTerminalPanel } from '../store/terminals'
 import { getActiveEditor } from './activeEditor'
+import { startInlineEdit } from './inlineEdit'
+import { chatWithSelection, newConversation, toggleChat } from '../store/chat'
 
 export interface Command {
   id: string
@@ -119,6 +121,18 @@ export const commands: Command[] = [
   { id: 'terminal.kill', title: 'Fermer le terminal actif', category: 'Terminal', run: () => killTerminal() },
 
   { id: 'settings.open', title: 'Ouvrir les paramètres', category: 'Préférences', keybinding: 'Mod+,', run: () => openSettings() },
+  { id: 'chat.toggle', title: 'Ouvrir/fermer le chat (ajoute la sélection)', category: 'IA', keybinding: 'Mod+L', run: () => chatWithSelection(true) },
+  { id: 'chat.addSelection', title: 'Ajouter la sélection au chat', category: 'IA', keybinding: 'Mod+Shift+L', when: () => !!getActiveEditor()?.hasTextFocus(), run: () => chatWithSelection(false) },
+  { id: 'chat.new', title: 'Nouvelle conversation', category: 'IA', run: newConversation },
+  { id: 'chat.close', title: 'Fermer le chat', category: 'IA', run: () => toggleChat(false) },
+  {
+    id: 'editor.inlineEdit',
+    title: 'Modifier avec l’IA (édition en ligne)',
+    category: 'IA',
+    keybinding: 'Mod+K',
+    when: () => !!getActiveEditor()?.hasTextFocus(),
+    run: () => startInlineEdit(getActiveEditor())
+  },
   { id: 'ai.configure', title: 'Configurer les modèles et les clés API', category: 'IA', run: () => openSettings('ai') },
   { id: 'ai.selectChatModel', title: 'Choisir le modèle de chat…', category: 'IA', run: () => openPalette('models') },
   { id: 'help.shortcuts', title: 'Raccourcis clavier', category: 'Aide', run: () => openSettings('shortcuts') },

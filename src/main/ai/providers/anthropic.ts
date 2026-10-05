@@ -10,6 +10,12 @@ import { toAiError } from '../errors'
 const SERVER_FALLBACK_MODELS = new Set(['claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5'])
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01'
 const DEFAULT_MAX_TOKENS = 64000
+/** Modèles qui acceptent la réflexion adaptative et le paramètre « effort ». */
+const ADAPTIVE_MODELS = /^claude-(opus-4-[6-9]|sonnet-4-[6-9]|opus-5|sonnet-5|fable|mythos)/
+
+export function supportsAdaptiveThinking(model: string): boolean {
+  return ADAPTIVE_MODELS.test(model)
+}
 const UNKNOWN_MODEL_MAX_TOKENS = 16000
 
 function client(config: ProviderConfig): Anthropic {
@@ -96,7 +102,10 @@ export const anthropicAdapter: ProviderAdapter = {
     }
     if (request.system) params.system = request.system
     if (request.temperature !== undefined) params.temperature = request.temperature
-    if (request.effort) params.output_config = { effort: request.effort }
+    const adaptive = supportsAdaptiveThinking(request.model)
+    if (request.effort && adaptive) params.output_config = { effort: request.effort }
+    // Par défaut, la réflexion de ces modèles n'est pas renvoyée (« omitted ») : on demande un résumé lisible.
+    if (request.showReasoning && adaptive) params.thinking = { type: 'adaptive', display: 'summarized' }
     if (request.tools?.length) {
       // Diffusion immédiate des arguments d'outils ; ils sont validés strictement à la fin de chaque bloc.
       params.tools = request.tools.map((t) => ({

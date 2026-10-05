@@ -9,7 +9,7 @@ import {
 import * as models from '../lib/editorModels'
 import { basename, dirname, isInside, join } from '../lib/paths'
 
-export type TabKind = 'file' | 'untitled' | 'settings'
+export type TabKind = 'file' | 'untitled' | 'settings' | 'diff'
 export type SidebarView = 'explorer' | 'search'
 export type PaletteMode = 'files' | 'commands' | 'line' | 'models'
 
@@ -488,8 +488,16 @@ export async function closeTab(id: string, force = false): Promise<boolean> {
   let nextActive = activeId
   if (activeId === id) nextActive = remaining[Math.min(idx, remaining.length - 1)]?.id ?? null
   set({ tabs: remaining, activeId: nextActive })
-  if (tab.kind !== 'settings') models.disposeModel(id)
+  if (tab.kind === 'file' || tab.kind === 'untitled') models.disposeModel(id)
+  tabCloseListeners.forEach((cb) => cb(id))
   return true
+}
+
+const tabCloseListeners = new Set<(id: string) => void>()
+
+export function onTabClosed(cb: (id: string) => void): () => void {
+  tabCloseListeners.add(cb)
+  return () => tabCloseListeners.delete(cb)
 }
 
 export async function closeOtherTabs(keepId: string): Promise<void> {

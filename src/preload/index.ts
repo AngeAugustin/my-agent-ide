@@ -56,6 +56,13 @@ const api: IdeApi = {
     abort: (requestId) => ipcRenderer.send('ai:abort', requestId),
     onEvent: (cb) => on<[string, ChatEvent]>('ai:event', cb)
   },
+  chats: {
+    load: (workspace) => ipcRenderer.invoke('chats:load', workspace),
+    save: (workspace, data) => ipcRenderer.invoke('chats:save', workspace, data)
+  },
+  git: {
+    diff: (cwd) => ipcRenderer.invoke('git:diff', cwd)
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (value) => ipcRenderer.invoke('settings:set', value)
