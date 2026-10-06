@@ -91,7 +91,7 @@ Autres scripts :
 ## Installateurs et intégration continue
 
 - `.github/workflows/ci.yml` vérifie les types, lance les tests et compile à chaque push.
-- `.github/workflows/release.yml` construit les installateurs **Windows (.exe), macOS (.dmg) et Linux (.AppImage, .deb)** quand vous poussez une étiquette de version, puis crée un brouillon de publication GitHub avec les fichiers :
+- `.github/workflows/release.yml` construit les installateurs **Windows (.exe), macOS (.dmg pour puces Apple et pour Mac Intel) et Linux (.AppImage, .deb)** quand vous poussez une étiquette de version, puis crée un brouillon de publication GitHub avec les fichiers :
 
 ```bash
 git tag v0.1.0
