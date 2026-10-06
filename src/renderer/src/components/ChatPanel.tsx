@@ -8,7 +8,6 @@ import {
   deleteConversation,
   newConversation,
   openConversation,
-  pendingContexts,
   removeContext,
   retryLast,
   sendMessage,
@@ -130,6 +129,12 @@ function ContextChip({ item, onRemove, dim, onClick, title }: { item: ContextIte
 function UserMessage({ turn }: { turn: UserTurn }) {
   return (
     <div className="chat-message user">
+      <div className="message-author">
+        <span>
+          <Icon name="account" /> Vous
+        </span>
+        {turn.at && <span className="muted">{new Date(turn.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>}
+      </div>
       {turn.contexts.length > 0 && (
         <div className="chip-row">
           {turn.contexts.map((c) => (
@@ -438,7 +443,7 @@ function ChatInput({ conv }: { conv?: Conversation }) {
             })
           }}
         >
-          <Icon name="mention" />
+          <Icon name="add" /> Ajouter du contexte
         </button>
       </div>
       <textarea
@@ -447,8 +452,8 @@ function ChatInput({ conv }: { conv?: Conversation }) {
         rows={2}
         placeholder={
           (conv?.mode ?? mode) === 'agent'
-            ? 'Décrivez la tâche à réaliser (ex. « ajoute des tests pour utils.ts et fais-les passer »)…'
-            : 'Posez une question, @ pour joindre du contexte…'
+            ? 'Dites à l’agent quoi refactoriser, déboguer ou construire…'
+            : 'Posez une question sur votre code, @ pour joindre du contexte…'
         }
         spellCheck={false}
         onChange={(e) => {
@@ -466,23 +471,9 @@ function ChatInput({ conv }: { conv?: Conversation }) {
         </div>
       )}
       <div className="chat-input-footer">
-        {!conv || conv.turns.length === 0 ? (
-          <div className="mode-toggle" role="radiogroup" aria-label="Mode">
-            <button role="radio" aria-checked={mode === 'chat'} className={mode === 'chat' ? 'active' : ''} onClick={() => setMode('chat')} title="Questions et réponses">
-              <Icon name="comment" /> Chat
-            </button>
-            <button role="radio" aria-checked={mode === 'agent'} className={mode === 'agent' ? 'active' : ''} onClick={() => setMode('agent')} title="L’agent modifie le projet et lance des commandes">
-              <Icon name="hubot" /> Agent
-            </button>
-          </div>
-        ) : (
-          <span className="mode-badge" title={conv.mode === 'agent' ? 'Conversation en mode Agent' : 'Conversation en mode Chat'}>
-            <Icon name={conv.mode === 'agent' ? 'hubot' : 'comment'} /> {conv.mode === 'agent' ? 'Agent' : 'Chat'}
-          </span>
-        )}
         <ModelSelect conv={conv} />
         {conv && <ContextGauge conv={conv} disabled={streaming} onError={setError} />}
-        <span className="muted small">{pendingContexts().length > 0 ? `${pendingContexts().length} élément(s) joint(s)` : ''}</span>
+        <span className="chat-input-spacer" />
         {streaming ? (
           <button className="btn send-button" title="Arrêter la génération" onClick={stopStreaming}>
             <Icon name="debug-stop" /> Arrêter
@@ -569,6 +560,65 @@ function History() {
   )
 }
 
+/** Onglets Agent / Chat / Historique (le mode d'une conversation est fixé à sa création). */
+function ChatTabs({ conv }: { conv: Conversation | undefined }) {
+  const view = useChat((s) => s.view)
+  const mode = useChat((s) => s.mode)
+  const current = conv?.mode ?? mode
+  const pick = (target: 'agent' | 'chat') => {
+    if (conv && conv.turns.length > 0 && (conv.mode ?? 'chat') !== target) newConversation()
+    setMode(target)
+    showHistory(false)
+  }
+  return (
+    <div className="chat-tabs mode-toggle" role="tablist" aria-label="Mode">
+      <button role="tab" aria-selected={view !== 'history' && current === 'agent'} className={view !== 'history' && current === 'agent' ? 'active' : ''} onClick={() => pick('agent')} title="L’agent modifie le projet et lance des commandes">
+        Agent
+      </button>
+      <button role="tab" aria-selected={view !== 'history' && current === 'chat'} className={view !== 'history' && current === 'chat' ? 'active' : ''} onClick={() => pick('chat')} title="Questions et réponses">
+        Chat
+      </button>
+      <button role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'active' : ''} onClick={() => showHistory(view !== 'history')} title="Conversations précédentes">
+        Historique
+      </button>
+    </div>
+  )
+}
+
+/** État de la dernière réponse et délai avant le premier jeton. */
+function ChatStatusLine({ conv }: { conv: Conversation }) {
+  const last = [...conv.turns].reverse().find((t): t is AssistantTurn => t.role === 'assistant')
+  if (!last) return null
+  const idx = conv.turns.indexOf(last)
+  const user = conv.turns[idx - 1]
+  const changed = user?.role === 'user' && user.checkpoint && !user.checkpoint.restored ? Object.keys(user.checkpoint.files).length : 0
+  const agent = conv.mode === 'agent'
+  const label =
+    last.status === 'streaming'
+      ? agent
+        ? `L’agent travaille… ${last.steps?.length ? `(étape ${last.steps.length})` : ''}`
+        : 'Rédaction de la réponse…'
+      : last.status === 'error'
+        ? 'Erreur lors de la dernière réponse'
+        : last.status === 'stopped'
+          ? 'Réponse interrompue'
+          : agent && changed
+            ? `Modifications appliquées (${changed} fichier${changed > 1 ? 's' : ''})`
+            : 'Réponse terminée'
+  return (
+    <div className={`chat-status-line ${last.status}`}>
+      <span>
+        <span className="dot" /> {label}
+      </span>
+      {last.ttftMs !== undefined && (
+        <span className="muted" title="Délai avant le premier élément de réponse">
+          {(last.ttftMs / 1000).toFixed(2).replace('.', ',')} s TTFT
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function ChatPanel() {
   const width = useChat((s) => s.width)
   const view = useChat((s) => s.view)
@@ -604,21 +654,23 @@ export function ChatPanel() {
     <aside className="chat-panel" style={{ width }}>
       <div className="chat-resizer" onMouseDown={startResize} />
       <div className="chat-header">
+        <span className="chat-brand-icon">
+          <Icon name="sparkle" />
+        </span>
         <span className="chat-title" title={conv ? conversationTitle(conv) : undefined}>
-          {view === 'history' ? 'Historique' : conv ? conversationTitle(conv) : 'Nouvelle conversation'}
+          {view === 'history' ? 'Historique' : conv ? conversationTitle(conv) : 'Assistant IA'}
         </span>
         <div className="sidebar-actions">
           <button className="icon-button" title="Nouvelle conversation" onClick={newConversation}>
             <Icon name="add" />
-          </button>
-          <button className={`icon-button${view === 'history' ? ' active' : ''}`} title="Historique" onClick={() => showHistory(view !== 'history')}>
-            <Icon name="history" />
           </button>
           <button className="icon-button" title="Fermer (Ctrl+L)" onClick={() => toggleChat(false)}>
             <Icon name="close" />
           </button>
         </div>
       </div>
+      <ChatTabs conv={conv} />
+      {view !== 'history' && conv && <ChatStatusLine conv={conv} />}
       {view === 'history' ? (
         <History />
       ) : (

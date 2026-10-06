@@ -6,12 +6,16 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
 
 ## Fonctionnalités actuelles
 
+- **Interface** inspirée de la maquette Figma « Nexus AI IDE » : thème nuit à accent cyan (thème clair disponible), barre de titre intégrée (projet et branche, champ « Demandez à l’IA » `Ctrl+E` — tapez `>` pour une commande —, état de l’IA, Commit, historique des notifications, menu), rail latéral étiqueté (CODE, RECH., GIT, PLAN, RÈGLES, DÉBOG.), bandeau de l’espace de travail (fil d’Ariane, état de l’index et du langage, bascules Fichiers / Terminal / Agent, **Exécuter** le fichier actif, **Revue des diffs**), barre d’état avec branche, problèmes, modèle, index, mémoire et processeur.
+- **Vue PLAN** (`Ctrl+Maj+A`) : les modifications de l’agent en cartes (aperçu du diff, nouveau / modifié / supprimé), journal d’exécution, statistiques, lancement des tests, et **validation groupée** (indexer dans Git ou annuler les fichiers cochés).
+- **Explorateur enrichi** : carte « Diff actif » (fichiers modifiés depuis le dernier commit, lignes ajoutées et supprimées, **revue par l’IA** en un clic), structure du fichier actif (classes, fonctions, méthodes), état de l’index.
+
 - **Éditeur Monaco** (le moteur de VS Code) : coloration de plus de 80 langages, multi-curseurs, rechercher/remplacer, repli de code, minimap, défilement collant, colorisation des parenthèses, mise en forme (JS/TS/JSON/CSS/HTML).
 - **Onglets** : aperçu (italique) et onglets épinglés, glisser-déposer pour réordonner, indicateur de fichier modifié, fil d’Ariane, fichiers « Sans titre » avec « Enregistrer sous ».
 - **Explorateur de fichiers** : création (y compris `dossier/fichier.ts`), renommage (F2), suppression vers la corbeille, glisser-déposer pour déplacer, menu contextuel, rafraîchissement automatique quand les fichiers changent sur le disque.
 - **Ouverture rapide** (`Ctrl+P`) avec recherche floue, **palette de commandes** (`Ctrl+Maj+P`), **aller à la ligne** (`Ctrl+G`).
 - **Recherche dans les fichiers** (`Ctrl+Maj+F`) : casse, mot entier, expressions régulières, filtres d’inclusion/exclusion, remplacement global.
-- **Terminal intégré** (`Ctrl+J` ou ``Ctrl+` ``) : plusieurs terminaux, vrai shell (node-pty), redimensionnable.
+- **Terminal intégré** (`Ctrl+J` ou ``Ctrl+` ``) : plusieurs terminaux, vrai shell (node-pty), redimensionnable ; lien direct vers le serveur local détecté dans la sortie (ex. `localhost:5173`) ; onglet **Problèmes** (erreurs et avertissements, envoi à l’IA).
 - **Paramètres** (`Ctrl+,`) : thème clair/sombre, police, tabulations, retour à la ligne, minimap, enregistrement automatique, shell, dossiers exclus, liste des raccourcis.
 - **Session restaurée** au démarrage (dossier et fichiers ouverts), dossiers récents, confirmation avant de fermer des fichiers non enregistrés.
 - **Vos propres clés API (BYOK)** — Paramètres › *Modèles et clés API* :
@@ -26,6 +30,7 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
   - réponses en flux, rendu Markdown (sans HTML exécutable), coloration du code, résumé de la réflexion du modèle (repliable) ;
   - contexte avec `@` : fichiers, dossiers, **problèmes** de l’éditeur, **diff Git**, sortie du **terminal**, **`@web`** (recherche sur Internet avec la question, puis lecture des premières pages), **page web** (`@https://…`), **documentations** indexées (`@` + nom), état du **débogueur** (`@Débogueur` : pile et variables) ; le fichier actif est joint automatiquement (cliquer sur sa puce pour l’exclure) ; sélection ajoutée avec `Ctrl+L` / `Ctrl+Maj+L` ; images collées (`Ctrl+V`) pour les modèles multimodaux ;
   - sur chaque bloc de code : copier, insérer au curseur, **Appliquer** au fichier indiqué (création ou fusion d’un extrait par le modèle d’édition, puis vue de différences à accepter ou rejeter), coller une commande dans le terminal (sans l’exécuter) ;
+  - onglets Agent / Chat / Historique, ligne d’état de la dernière réponse avec le **délai avant le premier jeton (TTFT)**, messages en cartes, **sous-tâches** tenues à jour par l’agent (outil `update_todos`) ;
   - choix du modèle par conversation, régénération, arrêt, historique des conversations par dossier ;
   - **résumé automatique des longues conversations** (chat et agent, y compris en pleine tâche) : à l’approche de la limite du modèle (seuil réglable), l’historique est remplacé par un résumé structuré rédigé par le modèle ; jauge de remplissage du contexte sous la zone de saisie (clic pour résumer à la demande) et résumé consultable dans la conversation.
 - **Édition en ligne** (`Ctrl+K` dans l’éditeur) : décrivez la modification de la sélection (ou le code à générer au curseur) ; la réponse s’écrit directement dans le fichier, puis s’affiche en différences (lignes ajoutées en vert, supprimées barrées) — `Ctrl+Entrée` pour accepter, `Échap` pour rejeter, ou affinez avec une nouvelle instruction. Une seule annulation (`Ctrl+Z`) défait toute la modification.
@@ -49,7 +54,8 @@ Un éditeur de code de bureau propulsé par l’IA, inspiré de Cursor, où **vo
 - **Débogueur** (`Ctrl+Maj+D`, menu *Exécuter*) pour **Node.js** (inspecteur V8, sans extension) et **Python** (debugpy) :
   - points d’arrêt dans la marge (`F9`), conditionnels (clic droit), désactivables, mémorisés par projet et qui suivent les lignes modifiées ;
   - `F5` démarrer / continuer, `F10` pas à pas principal, `F11` détaillé, `Maj+F11` sortant, `F6` suspendre, `Maj+F5` arrêter ; barre d’outils flottante ;
-  - variables (arborescence dépliable), expressions espionnées, pile des appels (cadres internes masqués), ligne courante surlignée, **console de débogage** avec sortie du programme et évaluation d’expressions dans le contexte en pause ;
+  - arrêt automatique sur les **exceptions non interceptées**, avec bannière et bouton **Corriger avec l’IA** (pile et variables jointes à l’agent) ;
+  - variables (arborescence dépliable), expressions espionnées, pile des appels (cadres internes masqués), ligne courante surlignée, **console de débogage** avec sortie du programme, filtres (erreurs, sortie, infos), recherche, **résumé par l’IA** et évaluation d’expressions dans le contexte en pause ;
   - fichier actif ou configurations `.vscode/launch.json` (types `node` et `python`, variables `${workspaceFolder}`, `${file}`, `${env:…}`…). Python nécessite `pip install debugpy` (l’IDE l’indique).
 - **Contrôle de source Git** (`Ctrl+Maj+G`) : fichiers modifiés, indexés, en conflit ; diff par fichier ; indexer, désindexer, annuler ; commit (ou modification du dernier) ; **message de commit rédigé par l’IA** à partir des modifications indexées et du style des commits précédents ; branches (changer, créer) ; pull, push, fetch ; couleurs Git dans l’explorateur et compteur dans la barre d’activité.
 - **Serveurs de langage (LSP)** : vérification des types sur tout le projet, autocomplétion intelligente, survol, aller à la définition (`F12`, `Ctrl`+clic), références, renommage (`F2`), corrections rapides, mise en forme.

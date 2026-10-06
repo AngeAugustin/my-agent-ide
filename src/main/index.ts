@@ -39,7 +39,12 @@ function createWindow(): void {
     minHeight: 400,
     show: false,
     title: 'My Agent IDE',
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#0a0e16',
+    // Barre de titre intégrée à l'interface : boutons natifs conservés (feux macOS, superposition ailleurs).
+    titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin'
+      ? { trafficLightPosition: { x: 16, y: 20 } }
+      : { titleBarOverlay: { color: '#0a0e16', symbolColor: '#bcc9cd', height: 56 } }),
     // Icône de fenêtre (Linux) ; les installateurs utilisent build/icon.png.
     ...(process.platform === 'linux' && !app.isPackaged ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     autoHideMenuBar: false,
@@ -130,6 +135,23 @@ function registerAppHandlers(): void {
     app.quit()
   })
   ipcMain.on('app:set-title', (_e, title: string) => mainWindow?.setTitle(title))
+  ipcMain.on('app:chrome-theme', (_e, theme: 'dark' | 'light') => {
+    if (process.platform === 'darwin' || !mainWindow) return
+    try {
+      mainWindow.setTitleBarOverlay(theme === 'dark' ? { color: '#0a0e16', symbolColor: '#bcc9cd' } : { color: '#eef1f5', symbolColor: '#3f4c56' })
+    } catch {
+      // superposition indisponible sur ce système
+    }
+  })
+  ipcMain.on('app:popup-menu', (_e, x: number, y: number) => {
+    if (mainWindow) Menu.getApplicationMenu()?.popup({ window: mainWindow, x: Math.round(x), y: Math.round(y) })
+  })
+  ipcMain.handle('app:metrics', () => {
+    const metrics = app.getAppMetrics()
+    const memory = metrics.reduce((n, m) => n + (m.memory?.workingSetSize ?? 0), 0) * 1024
+    const cpu = metrics.reduce((n, m) => n + (m.cpu?.percentCPUUsage ?? 0), 0)
+    return { memory, cpu }
+  })
   ipcMain.on('app:toggle-fullscreen', () => mainWindow?.setFullScreen(!mainWindow.isFullScreen()))
 }
 

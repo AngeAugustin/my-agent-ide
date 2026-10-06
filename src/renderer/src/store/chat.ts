@@ -26,6 +26,8 @@ export interface UserTurn {
   sent: string
   images: Array<{ name: string; mediaType: string; data: string }>
   truncated: string[]
+  /** Heure d'envoi. */
+  at?: number
   /** Mode Agent : état des fichiers avant les modifications de ce tour (null = fichier inexistant). */
   checkpoint?: { files: Record<string, string | null>; restored?: boolean }
 }
@@ -43,6 +45,10 @@ export interface AssistantTurn {
   usage?: { inputTokens: number; outputTokens: number }
   /** Taille du contexte envoyé lors de la dernière requête (jetons d'entrée). */
   contextTokens?: number
+  /** Délai avant le premier élément de réponse (ms). */
+  ttftMs?: number
+  /** Mode Agent : liste des sous-tâches tenue par l'agent (outil update_todos). */
+  todos?: Array<{ text: string; done: boolean }>
   /** Mode Agent : étapes successives (le texte final est celui de la dernière étape). */
   steps?: AgentStep[]
 }
@@ -379,7 +385,8 @@ export async function sendMessage(text: string): Promise<void> {
     contexts: items.map((i) => (i.kind === 'image' ? { ...i, data: '' } : i)),
     sent: (conv.pendingNote ? `${conv.pendingNote}\n\n` : '') + header + buildUserMessage(question, resolved),
     images: images.map((i) => ({ name: i.name, mediaType: i.mediaType, data: i.data })),
-    truncated
+    truncated,
+    at: Date.now()
   }
   const assistant: AssistantTurn = {
     id: newId('a'),
@@ -455,6 +462,8 @@ async function runAssistant(convId: string, turnId: string, model: ModelRef, tur
   let pendingText = ''
   let pendingReasoning = ''
   let flushTimer: ReturnType<typeof setTimeout> | null = null
+  const started = performance.now()
+  let firstAt: number | null = null
   const flush = () => {
     flushTimer = null
     if (!pendingText && !pendingReasoning) return
@@ -474,6 +483,11 @@ async function runAssistant(convId: string, turnId: string, model: ModelRef, tur
       showReasoning: useIde.getState().settings.showReasoning
     },
     (ev) => {
+      if ((ev.type === 'text' || ev.type === 'reasoning') && firstAt === null) {
+        firstAt = performance.now()
+        const ttftMs = Math.round(firstAt - started)
+        updateTurn(convId, turnId, (t) => ({ ...t, ttftMs }))
+      }
       if (ev.type === 'text') pendingText += ev.text
       else if (ev.type === 'reasoning') pendingReasoning += ev.text
       else if (ev.type === 'notice') updateTurn(convId, turnId, (t) => ({ ...t, notices: [...t.notices, ev.message] }))

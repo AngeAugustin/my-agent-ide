@@ -213,6 +213,7 @@ export interface IdeApi {
     fetch(cwd: string): Promise<string>
     show(cwd: string, ref: string, path: string): Promise<string | null>
     stagedDiff(cwd: string): Promise<string>
+    numstat(cwd: string): Promise<Record<string, { added: number; removed: number }>>
     log(cwd: string, count: number): Promise<string[]>
   }
   index: {
@@ -294,6 +295,12 @@ export interface IdeApi {
     confirmClose(): void
     setTitle(title: string): void
     toggleFullScreen(): void
+    /** Couleurs des boutons natifs de la fenêtre selon le thème. */
+    setChromeTheme(theme: 'dark' | 'light'): void
+    /** Affiche le menu de l'application (barre de titre intégrée). */
+    popupMenu(x: number, y: number): void
+    /** Mémoire (octets) et processeur (%) utilisés par l'application. */
+    metrics(): Promise<{ memory: number; cpu: number }>
     /** Dossier des données de l'application et sa taille en octets. */
     dataInfo(): Promise<{ path: string; size: number }>
     /** Supprime toutes les données de l'application puis la ferme. */

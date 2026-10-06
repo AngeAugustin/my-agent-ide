@@ -15,13 +15,24 @@ import {
 import { Icon } from './Icon'
 import { registerTerminal } from '../lib/terminalRegistry'
 import { DebugConsole } from './DebugView'
+import { ProblemsView, useProblemCount } from './ProblemsView'
+import { create } from 'zustand'
+
+const useLocalUrl = create<{ url: string | null }>()(() => ({ url: null }))
+const setLocalUrl = (url: string) => useLocalUrl.setState({ url })
 import { setPanelTab, useDebug } from '../store/debug'
 
 const DARK_THEME = {
-  background: '#18191c',
-  foreground: '#d4d4d4',
-  cursor: '#d4d4d4',
-  selectionBackground: '#264f78'
+  background: '#0a0e16',
+  foreground: '#dfe2ee',
+  cursor: '#4cd7f6',
+  selectionBackground: '#4cd7f640',
+  green: '#4edea3',
+  brightGreen: '#4edea3',
+  cyan: '#4cd7f6',
+  brightCyan: '#acedff',
+  red: '#ff6b5f',
+  brightRed: '#ffb4ab'
 }
 
 const LIGHT_THEME = {
@@ -38,7 +49,11 @@ const LIGHT_THEME = {
 const writers = new Map<number, (data: string) => void>()
 // Données reçues avant que l'interface ne connaisse l'identifiant du processus (invite du shell).
 const early = new Map<number, string[]>()
+// Serveurs locaux annoncés dans les terminaux (ex. « http://localhost:5173 ») : lien rapide dans l'en-tête.
+const LOCAL_URL = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d{2,5}[^\s"'\x1b]*/g
 window.api.terminal.onData((id, data) => {
+  const urls = data.replace(/\x1b\[[0-9;]*m/g, '').match(LOCAL_URL)
+  if (urls) setLocalUrl(urls[urls.length - 1].replace('0.0.0.0', 'localhost').replace(/[).,;]+$/, ''))
   const writer = writers.get(id)
   if (writer) writer(data)
   else early.set(id, [...(early.get(id) ?? []), data])
@@ -188,6 +203,8 @@ export function TerminalPanel() {
   const height = useIde((s) => s.panelHeight)
   const visible = useIde((s) => s.panelVisible)
   const panelTab = useDebug((s) => s.panelTab)
+  const problemCount = useProblemCount()
+  const localUrl = useLocalUrl((s) => s.url)
 
   // Ouvre un premier terminal quand le panneau est affiché vide.
   useEffect(() => {
@@ -220,6 +237,9 @@ export function TerminalPanel() {
           <button className={`panel-title${panelTab === 'debug' ? ' active' : ''}`} onClick={() => setPanelTab('debug')}>
             Console de débogage
           </button>
+          <button className={`panel-title${panelTab === 'problems' ? ' active' : ''}`} onClick={() => setPanelTab('problems')}>
+            Problèmes {problemCount > 0 && <span className="panel-count">{problemCount}</span>}
+          </button>
           {panelTab === 'terminal' && terminals.map((t) => (
             <button
               key={t.key}
@@ -243,6 +263,11 @@ export function TerminalPanel() {
           ))}
         </div>
         <div className="panel-actions">
+          {localUrl && (
+            <button className="panel-url" title={`Ouvrir ${localUrl} dans le navigateur`} onClick={() => window.api.shell.openExternal(localUrl)}>
+              <span className="dot" /> {localUrl.replace(/^https?:\/\//, '')}
+            </button>
+          )}
           {panelTab === 'terminal' && (
             <>
               <button className="icon-button" title="Nouveau terminal" onClick={() => newTerminal()}>
@@ -263,6 +288,7 @@ export function TerminalPanel() {
           <TerminalView key={t.key} info={t} visible={visible && panelTab === 'terminal' && t.key === activeKey} />
         ))}
         <DebugConsole visible={visible && panelTab === 'debug'} />
+        <ProblemsView visible={visible && panelTab === 'problems'} />
       </div>
     </div>
   )

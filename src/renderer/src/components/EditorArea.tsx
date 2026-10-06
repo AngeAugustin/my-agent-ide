@@ -9,6 +9,7 @@ import {
   revealInExplorer,
   setActive,
   showSidebarView,
+  PLAN_TAB,
   SETTINGS_TAB,
   useIde,
   type Tab
@@ -23,6 +24,7 @@ import { Icon } from './Icon'
 import { DebugControls } from './DebugView'
 import { SettingsPage } from './SettingsPage'
 import { DiffReview } from './DiffReview'
+import { PlanView } from './PlanView'
 
 function TabItem({ tab, index }: { tab: Tab; index: number }) {
   const active = useIde((s) => s.activeId === tab.id)
@@ -32,6 +34,8 @@ function TabItem({ tab, index }: { tab: Tab; index: number }) {
   const icon =
     tab.kind === 'settings'
       ? { icon: 'settings-gear', color: 'var(--fg-muted)' }
+      : tab.kind === 'plan'
+        ? { icon: 'type-hierarchy', color: 'var(--accent-bright)' }
       : tab.kind === 'diff'
         ? { icon: 'diff', color: 'var(--accent)' }
       : tab.kind === 'untitled'
@@ -104,22 +108,6 @@ function TabItem({ tab, index }: { tab: Tab; index: number }) {
   )
 }
 
-function Breadcrumbs({ path }: { path: string }) {
-  const workspace = useIde((s) => s.workspace)
-  const rel = workspace ? relative(workspace, path) : path
-  const parts = rel.split(/[\\/]/).filter(Boolean)
-  return (
-    <div className="breadcrumbs">
-      {parts.map((p, i) => (
-        <span key={i} className="crumb">
-          {i > 0 && <Icon name="chevron-right" className="crumb-sep" />}
-          {i === parts.length - 1 && <Icon name={fileIcon(path).icon} color={fileIcon(path).color} />}
-          <span>{p}</span>
-        </span>
-      ))}
-    </div>
-  )
-}
 
 function Welcome() {
   const recent = useIde((s) => s.recentWorkspaces)
@@ -198,12 +186,12 @@ export function EditorArea() {
           ))}
         </div>
       )}
-      {active?.kind === 'file' && <Breadcrumbs path={active.id} />}
       <div className="editor-body">
         <div className="editor-host" style={{ display: editorPath ? 'block' : 'none' }}>
           <CodeEditor path={editorPath} />
         </div>
         {activeId === SETTINGS_TAB && <SettingsPage />}
+        {activeId === PLAN_TAB && <PlanView />}
         {active?.kind === 'diff' && <DiffReview key={active.id} id={active.id} />}
         {!active && <Welcome />}
       </div>

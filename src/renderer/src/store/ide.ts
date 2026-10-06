@@ -9,7 +9,7 @@ import {
 import * as models from '../lib/editorModels'
 import { basename, dirname, isInside, join } from '../lib/paths'
 
-export type TabKind = 'file' | 'untitled' | 'settings' | 'diff'
+export type TabKind = 'file' | 'untitled' | 'settings' | 'diff' | 'plan'
 export type SidebarView = 'explorer' | 'search' | 'git' | 'debug'
 export type PaletteMode = 'files' | 'commands' | 'line' | 'models'
 
@@ -91,7 +91,12 @@ interface IdeState {
   palette: { open: boolean; mode: PaletteMode; initial: string; nonce: number }
   dialog: DialogRequest | null
   toasts: Toast[]
+  /** Historique des notifications (cloche de la barre de titre). */
+  notifications: Array<Toast & { at: number }>
+  unreadNotifications: number
   searchFocusNonce: number
+  /** Demande de focus du champ « Demandez à l'IA » de la barre de titre. */
+  askFocusNonce: number
   settingsSection: string
 }
 
@@ -117,11 +122,15 @@ const initialState: IdeState = {
   palette: { open: false, mode: 'files', initial: '', nonce: 0 },
   dialog: null,
   toasts: [],
+  notifications: [],
+  unreadNotifications: 0,
   searchFocusNonce: 0,
+  askFocusNonce: 0,
   settingsSection: 'general'
 }
 
 export const SETTINGS_TAB = 'ide://settings'
+export const PLAN_TAB = 'ide://plan'
 
 export const useIde = create<IdeState>()(() => initialState)
 
@@ -136,7 +145,11 @@ let toastCounter = 1
 
 export function notify(message: string, kind: Toast['kind'] = 'info'): void {
   const id = toastCounter++
-  set((s) => ({ toasts: [...s.toasts, { id, kind, message }] }))
+  set((s) => ({
+    toasts: [...s.toasts, { id, kind, message }],
+    notifications: [{ id, kind, message, at: Date.now() }, ...s.notifications].slice(0, 50),
+    unreadNotifications: s.unreadNotifications + 1
+  }))
   setTimeout(() => dismissToast(id), kind === 'error' ? 8000 : 4000)
 }
 
@@ -436,6 +449,15 @@ export function openSettings(section?: string): void {
     set({ tabs: [...tabs, { id: SETTINGS_TAB, kind: 'settings', title: 'Paramètres', dirty: false, preview: false }] })
   }
   set({ activeId: SETTINGS_TAB })
+}
+
+/** Vue « Plan » : revue des modifications de l'agent. */
+export function openPlan(): void {
+  const { tabs } = get()
+  if (!tabs.some((t) => t.id === PLAN_TAB)) {
+    set({ tabs: [...tabs, { id: PLAN_TAB, kind: 'plan', title: 'Plan de l’agent', dirty: false, preview: false }] })
+  }
+  set({ activeId: PLAN_TAB })
 }
 
 export function setActive(id: string): void {

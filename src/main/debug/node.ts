@@ -134,7 +134,8 @@ export class NodeDebugBackend implements DebugBackend {
 
     await this.send('Runtime.enable')
     await this.send('Debugger.enable')
-    await this.send('Debugger.setPauseOnExceptions', { state: 'none' })
+    // Arrêt sur les exceptions non interceptées (comme VS Code par défaut).
+    await this.send('Debugger.setPauseOnExceptions', { state: 'uncaught' })
     for (const [path, bps] of this.wanted) await this.applyBreakpoints(path, bps)
     await this.send('Runtime.runIfWaitingForDebugger')
   }
@@ -167,7 +168,10 @@ export class NodeDebugBackend implements DebugBackend {
         this.emit({
           type: 'stopped',
           reason: hit ? 'breakpoint' : reason === 'exception' || reason === 'promiseRejection' ? 'exception' : reason === 'other' ? 'step' : reason,
-          description: reason === 'exception' ? formatRemoteObject(msg.params.data ?? { type: 'object' }) : undefined
+          description:
+            reason === 'exception' || reason === 'promiseRejection'
+              ? formatRemoteObject(msg.params.data ?? { type: 'object' }).split('\n')[0]
+              : undefined
         })
         break
       }

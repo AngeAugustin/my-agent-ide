@@ -33,6 +33,7 @@ export type ToolName =
   | 'run_command'
   | 'get_problems'
   | 'codebase_search'
+  | 'update_todos'
   | 'web_search'
   | 'fetch_url'
   | 'docs_search'
@@ -140,6 +141,26 @@ export const AGENT_TOOLS: Array<ToolDefinition & { name: ToolName }> = [
         timeout_seconds: { type: 'integer', description: 'Délai maximal (optionnel).' }
       },
       required: ['command']
+    }
+  },
+  {
+    name: 'update_todos',
+    description:
+      'Tient à jour la liste des sous-tâches de la demande en cours, affichée à l’utilisateur. Utilise-la pour une tâche en plusieurs étapes : envoie la liste complète à chaque fois, en cochant (done) les étapes terminées.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        todos: {
+          type: 'array',
+          description: 'Liste complète des sous-tâches.',
+          items: {
+            type: 'object',
+            properties: { text: { type: 'string' }, done: { type: 'boolean' } },
+            required: ['text', 'done']
+          }
+        }
+      },
+      required: ['todos']
     }
   },
   {
@@ -304,6 +325,7 @@ export function agentSystemPrompt(env: { os: string; workspace: string; date: st
     'Méthode :',
     '- Explore d’abord ce qui est nécessaire (codebase_search pour localiser une fonctionnalité, list_dir, find_files, search_text, read_file) ; ne devine pas le contenu d’un fichier.',
     '- Modifie avec edit_file (remplacement exact) ; utilise write_file pour créer un fichier ou le réécrire entièrement.',
+    '- Pour une tâche en plusieurs étapes, établis d’abord la liste des sous-tâches avec update_todos, puis coche-les au fur et à mesure.',
     '- Vérifie ton travail quand c’est possible (tests, compilation, linter) avec run_command, puis corrige les erreurs.',
     '- Les chemins sont relatifs à la racine du projet. Ne touche qu’aux fichiers utiles à la demande.',
     '- Si une commande est refusée par l’utilisateur, ne la relance pas : adapte-toi ou demande-lui.',

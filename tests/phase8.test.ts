@@ -234,3 +234,19 @@ describe('prédiction de la prochaine modification', () => {
     expect(recordEdit([{ path: 'a', line: 1, before: ['a'], after: ['ab'], at: 0 }], { path: 'a', line: 1, before: ['ab'], after: ['a'], at: 100 })).toEqual([])
   })
 })
+
+import { extractOutline } from '../src/shared/outline'
+import { parseNumstat } from '../src/main/git'
+
+describe('structure des fichiers et statistiques Git', () => {
+  it('détecte classes, fonctions et méthodes', () => {
+    const ts = ['export class Moteur {', '  private file = 1', '  async demarrer(x: number): Promise<void> {', '    if (x) {', '  }', '}', 'export interface Options {}', 'export type Id = string', 'export function lancer() {}', 'const aide = async (a) => a'].join('\n')
+    expect(extractOutline(ts).map((o) => `${o.kind}:${o.name}:${o.line}`)).toEqual(['class:Moteur:1', 'method:demarrer:3', 'interface:Options:7', 'type:Id:8', 'function:lancer:9', 'function:aide:10'])
+    const py = 'class A:\n    def m(self):\n        pass\ndef f():\n    pass'
+    expect(extractOutline(py).map((o) => `${o.kind}:${o.name}`)).toEqual(['class:A', 'method:m', 'function:f'])
+  })
+
+  it('lit la sortie de git diff --numstat', () => {
+    expect(parseNumstat('12\t3\tsrc/a.ts\n-\t-\timg.png\n')).toEqual({ 'src/a.ts': { added: 12, removed: 3 }, 'img.png': { added: 0, removed: 0 } })
+  })
+})

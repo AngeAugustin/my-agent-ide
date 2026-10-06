@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { openPalette, toggleTheme, useIde } from '../store/ide'
+import { openPalette, toggleTheme, togglePanel, useIde } from '../store/ide'
+import { useGit } from '../store/git'
+import { setPanelTab } from '../store/debug'
 import { modelLabel, useAi } from '../store/ai'
 import { toggleAutocomplete, useAutocomplete } from '../lib/autocomplete'
 import { indexSummary, useCodeIndex } from '../store/codeIndex'
@@ -30,6 +32,27 @@ function useMarkerCounts(): { errors: number; warnings: number } {
   return counts
 }
 
+function formatBytes(n: number): string {
+  return n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1).replace('.', ',')} Go` : `${Math.round(n / 1024 ** 2)} Mo`
+}
+
+/** Mémoire et processeur de l'application, relevés toutes les 5 secondes. */
+function useMetrics(): { memory: number; cpu: number } | null {
+  const [m, setM] = useState<{ memory: number; cpu: number } | null>(null)
+  useEffect(() => {
+    const read = () => void window.api.app.metrics().then(setM, () => {})
+    read()
+    const t = setInterval(read, 5000)
+    return () => clearInterval(t)
+  }, [])
+  return m
+}
+
+function showProblems(): void {
+  setPanelTab('problems')
+  togglePanel(true)
+}
+
 export function StatusBar() {
   const workspace = useIde((s) => s.workspace)
   const cursor = useIde((s) => s.cursor)
@@ -47,29 +70,39 @@ export function StatusBar() {
   useAi((s) => s.providers) // rafraîchit le libellé quand la liste des modèles change
   const debugSession = useDebug((s) => (s.session && s.session.status !== 'terminated' ? s.session : null))
   const nextEditPending = useNextEdit((s) => s.pending)
+  const git = useGit((s) => s.status)
+  const showReasoning = useIde((s) => s.settings.showReasoning)
+  const metrics = useMetrics()
 
   return (
     <footer className={`status-bar${debugSession ? ' debugging' : ''}`}>
       <div className="status-left">
-        <button className="status-item" title="Ouvrir un dossier" onClick={() => runCommand('workspace.openFolder')}>
-          <Icon name="folder" /> {workspace ? basename(workspace) : 'Aucun dossier'}
-        </button>
-        {workspace && index && (
-          <button
-            className={`status-item${index.state === 'error' ? ' status-warning' : ''}`}
-            title={
-              index.state === 'error'
-                ? `Index du code : ${index.error}`
-                : `Index du code : ${index.files} fichiers, ${index.chunks} extraits${index.embeddingsEnabled && index.embeddingModel ? `, ${index.embedded} avec embeddings` : ' (recherche par mots-clés)'}`
-            }
-            onClick={() => openSettings('index')}
-          >
-            <Icon name={indexBusy ? 'loading' : 'database'} className={indexBusy ? 'codicon-modifier-spin' : undefined} /> {indexSummary(index)}
+        {git?.isRepo && git.branch ? (
+          <button className="status-item" title={`Branche ${git.branch}${git.ahead || git.behind ? ` (↑${git.ahead} ↓${git.behind})` : ''}`} onClick={() => runCommand('view.git')}>
+            <Icon name="git-branch" /> {git.branch}
+            {git.ahead > 0 && ` ↑${git.ahead}`}
+            {git.behind > 0 && ` ↓${git.behind}`}
+          </button>
+        ) : (
+          <button className="status-item" title="Ouvrir un dossier" onClick={() => runCommand('workspace.openFolder')}>
+            <Icon name="folder" /> {workspace ? basename(workspace) : 'Aucun dossier'}
           </button>
         )}
-        <span className="status-item" title="Erreurs et avertissements">
-          <Icon name="error" /> {errors} <Icon name="warning" /> {warnings}
-        </span>
+        <button className="status-item status-problems" title="Erreurs et avertissements (panneau Problèmes)" onClick={showProblems}>
+          <span className="status-errors">
+            <Icon name="error" /> {errors}
+          </span>
+          <span className="status-warnings">
+            <Icon name="warning" /> {warnings}
+          </span>
+        </button>
+        <button
+          className="status-item status-model"
+          title={chatModel ? `Modèle de chat : ${chatModel.modelId} — cliquer pour changer` : 'Configurer un modèle IA'}
+          onClick={() => openPalette('models')}
+        >
+          <Icon name="sparkle" /> {chatModel ? `${modelLabel(chatModel)}${showReasoning ? ' (réflexion)' : ''}` : 'Configurer l’IA'}
+        </button>
         {debugSession && (
           <button className="status-item" title="Exécuter et déboguer" onClick={() => runCommand('view.debug')}>
             <Icon name="debug-alt" /> {debugSession.name} — {debugSession.status === 'paused' ? 'en pause' : debugSession.status === 'starting' ? 'démarrage' : 'en cours'}
@@ -82,6 +115,25 @@ export function StatusBar() {
         )}
       </div>
       <div className="status-right">
+        {workspace && index && (
+          <button
+            className={`status-item${index.state === 'error' ? ' status-warning' : ''}`}
+            title={
+              index.state === 'error'
+                ? `Index du code : ${index.error}`
+                : `Index du code : ${index.files} fichiers, ${index.chunks} extraits${index.embeddingsEnabled && index.embeddingModel ? `, ${index.embedded} avec embeddings` : ' (recherche par mots-clés)'}`
+            }
+            onClick={() => openSettings('index')}
+          >
+            {indexBusy ? <Icon name="loading" className="codicon-modifier-spin" /> : <span className={`status-dot${index.state === 'error' ? ' error' : ''}`} />}
+            {indexBusy ? indexSummary(index) : index.state === 'error' ? 'Index en erreur' : `Index : ${index.files} fichiers`}
+          </button>
+        )}
+        {metrics && (
+          <span className="status-item muted-item" title="Mémoire et processeur utilisés par My Agent IDE">
+            MÉM : {formatBytes(metrics.memory)} · CPU : {Math.round(metrics.cpu)} %
+          </span>
+        )}
         {hasEditor && cursor && (
           <>
             <button className="status-item" title="Aller à la ligne" onClick={() => openPalette('line')}>
@@ -109,13 +161,6 @@ export function StatusBar() {
         >
           <Icon name={pending ? 'loading' : autocompleteOn && autocompleteModel ? 'copilot' : 'circle-slash'} className={pending ? 'codicon-modifier-spin' : undefined} />
           {autocompleteOn ? 'Tab' : 'Tab désactivé'}
-        </button>
-        <button
-          className="status-item"
-          title={chatModel ? `Modèle de chat : ${chatModel.modelId} — cliquer pour changer` : 'Configurer un modèle IA'}
-          onClick={() => openPalette('models')}
-        >
-          <Icon name="sparkle" /> {chatModel ? modelLabel(chatModel) : 'Configurer l’IA'}
         </button>
         {Object.keys(lspRunning).length > 0 && (
           <button

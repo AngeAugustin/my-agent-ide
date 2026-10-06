@@ -31,14 +31,38 @@ self.MonacoEnvironment = {
 monaco.editor.defineTheme('ide-dark', {
   base: 'vs-dark',
   inherit: true,
-  rules: [],
+  rules: [
+    { token: 'keyword', foreground: '4cd7f6' },
+    { token: 'type', foreground: '4edea3' },
+    { token: 'type.identifier', foreground: '4edea3' },
+    { token: 'string', foreground: 'f2b8a2' },
+    { token: 'number', foreground: 'c0c1ff' },
+    { token: 'comment', foreground: '5f6d72', fontStyle: 'italic' }
+  ],
   colors: {
-    'editor.background': '#1e1f22',
-    'editorGutter.background': '#1e1f22',
-    'editor.lineHighlightBackground': '#26282e',
-    'editorLineNumber.foreground': '#5a5d63',
-    'editorLineNumber.activeForeground': '#c9ccd1',
-    'minimap.background': '#1e1f22'
+    'editor.background': '#0f131b',
+    'editor.foreground': '#dfe2ee',
+    'editorGutter.background': '#0f131b',
+    'editor.lineHighlightBackground': '#161b24',
+    'editor.lineHighlightBorder': '#00000000',
+    'editor.selectionBackground': '#4cd7f63d',
+    'editor.inactiveSelectionBackground': '#4cd7f61f',
+    'editorCursor.foreground': '#4cd7f6',
+    'editorLineNumber.foreground': '#3d494c',
+    'editorLineNumber.activeForeground': '#bcc9cd',
+    'editorIndentGuide.background1': '#1c2028',
+    'editorIndentGuide.activeBackground1': '#31353e',
+    'editorWidget.background': '#181c24',
+    'editorWidget.border': '#31353e',
+    'editorSuggestWidget.background': '#181c24',
+    'editorSuggestWidget.selectedBackground': '#262a33',
+    'editorHoverWidget.background': '#181c24',
+    'editorHoverWidget.border': '#31353e',
+    'minimap.background': '#0f131b',
+    'scrollbarSlider.background': '#262a3399',
+    'scrollbarSlider.hoverBackground': '#31353ecc',
+    'editorBracketMatch.background': '#4cd7f622',
+    'editorBracketMatch.border': '#4cd7f666'
   }
 })
 
@@ -48,7 +72,9 @@ monaco.editor.defineTheme('ide-light', {
   rules: [],
   colors: {
     'editor.background': '#ffffff',
-    'editor.lineHighlightBackground': '#f3f4f6'
+    'editor.lineHighlightBackground': '#f1f6f8',
+    'editorCursor.foreground': '#0891b2',
+    'editor.selectionBackground': '#0891b22e'
   }
 })
 

@@ -26,6 +26,8 @@ import { CommandPalette } from './components/CommandPalette'
 import { ContextMenu } from './components/ContextMenu'
 import { Dialog, Toasts } from './components/Overlays'
 import { ChatPanel } from './components/ChatPanel'
+import { TitleBar } from './components/TitleBar'
+import { WorkspaceToolbar } from './components/WorkspaceToolbar'
 import { useChat } from './store/chat'
 
 function useGlobalShortcuts(): void {
@@ -98,20 +100,27 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    window.api.app.setChromeTheme(theme)
   }, [theme])
 
   if (!ready) return <div className="app loading" />
 
   return (
     <div className="app">
+      <TitleBar />
       <div className="main">
         <ActivityBar />
-        {sidebarVisible && <Sidebar />}
-        <div className="workbench">
-          <EditorArea />
-          <TerminalPanel />
+        <div className="main-column">
+          <WorkspaceToolbar />
+          <div className="tri-pane">
+            {sidebarVisible && <Sidebar />}
+            <div className="workbench">
+              <EditorArea />
+              <TerminalPanel />
+            </div>
+            {chatVisible && <ChatPanel />}
+          </div>
         </div>
-        {chatVisible && <ChatPanel />}
       </div>
       <StatusBar />
       <CommandPalette />

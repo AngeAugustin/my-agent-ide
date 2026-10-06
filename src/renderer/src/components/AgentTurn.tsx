@@ -98,6 +98,29 @@ function ToolRunView({ convId, run, turnId, stepId, index }: { convId: string; r
   )
 }
 
+/** Liste des sous-tâches tenue par l'agent. */
+function TodoCard({ todos }: { todos: Array<{ text: string; done: boolean }> }) {
+  const done = todos.filter((t) => t.done).length
+  return (
+    <div className="todo-card">
+      <div className="todo-card-header">
+        <span>
+          <Icon name="checklist" /> Sous-tâches
+        </span>
+        <span className="muted">
+          {done} sur {todos.length} terminée(s)
+        </span>
+      </div>
+      {todos.map((t, i) => (
+        <div key={i} className={`todo-item${t.done ? ' done' : ''}`}>
+          <span className="todo-check">{t.done && <Icon name="check" />}</span>
+          <span>{t.text}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function AgentAssistantTurn({ convId, turn, last }: { convId: string; turn: AssistantTurn; last: boolean }) {
   const streaming = turn.status === 'streaming'
   const [showReasoning, setShowReasoning] = useState<Record<string, boolean>>({})
@@ -119,6 +142,7 @@ export function AgentAssistantTurn({ convId, turn, last }: { convId: string; tur
           ))}
         </div>
       ))}
+      {turn.todos && turn.todos.length > 0 && <TodoCard todos={turn.todos} />}
       {streaming && (turn.steps?.length ?? 0) > 0 && !turn.steps!.at(-1)!.text && turn.steps!.at(-1)!.tools.length === 0 && (
         <div className="typing">
           <span />

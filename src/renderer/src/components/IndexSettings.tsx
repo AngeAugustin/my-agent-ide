@@ -4,6 +4,7 @@ import { openSettings, useIde } from '../store/ide'
 import { modelLabel, useAi } from '../store/ai'
 import { formatTokens } from '../lib/ai'
 import { Icon } from './Icon'
+import type { SearchHit } from '@shared/codeindex'
 
 export function IndexSettings() {
   const status = useCodeIndex((s) => s.status)
@@ -11,7 +12,8 @@ export function IndexSettings() {
   const embeddingRef = useIde((s) => s.settings.ai.models.embeddings)
   useAi((s) => s.providers)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<Array<{ path: string; startLine: number; endLine: number; score: number }> | null>(null)
+  const [results, setResults] = useState<SearchHit[] | null>(null)
+  const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   if (!workspace || !status) {
@@ -118,34 +120,49 @@ export function IndexSettings() {
         </div>
       )}
 
-      <h3>Essayer</h3>
+      <h3>Bac à sable de recherche sémantique</h3>
       <form
         className="index-try"
         onSubmit={async (e) => {
           e.preventDefault()
           setError(null)
           try {
-            setResults(await window.api.index.search(query, 8))
+            const t0 = performance.now()
+            setResults(await window.api.index.search(query, 6))
+            setElapsed(Math.round(performance.now() - t0))
           } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
           }
         }}
       >
         <input className="wide" value={query} placeholder="ex. « où est gérée l’authentification ? »" onChange={(e) => setQuery(e.target.value)} />
-        <button className="btn" type="submit" disabled={!query.trim()}>
-          Rechercher
+        <button className="btn primary" type="submit" disabled={!query.trim()}>
+          Interroger
         </button>
       </form>
       {error && <div className="error-text">{error}</div>}
       {results && (
-        <ul className="index-results">
-          {results.length === 0 && <li className="muted">Aucun résultat.</li>}
-          {results.map((r, i) => (
-            <li key={i}>
-              <code>{r.path}</code> <span className="muted small">lignes {r.startLine}-{r.endLine}</span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="sandbox-summary">
+            <span>{results.length} extrait(s) pertinent(s)</span>
+            <span className="diff-plus">Trouvé(s) en {elapsed} ms</span>
+          </div>
+          <ul className="index-results">
+            {results.length === 0 && <li className="muted">Aucun résultat.</li>}
+            {results.map((r, i) => (
+              <li key={i} className="sandbox-hit">
+                <div className="sandbox-hit-header">
+                  <Icon name="link" />
+                  <strong>{r.path}</strong>
+                  <span className="muted">:{r.startLine}-{r.endLine}</span>
+                  <span className="sandbox-score">score : {r.score.toFixed(3)}</span>
+                  <span className="muted">Rang n° {i + 1}</span>
+                </div>
+                <pre className="sandbox-code">{r.text.split('\n').slice(0, 10).join('\n')}</pre>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </>
   )

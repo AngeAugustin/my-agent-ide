@@ -29,6 +29,7 @@ import { startInlineEdit } from './inlineEdit'
 import { toggleAutocomplete } from './autocomplete'
 import { commit as gitCommit, generateCommitMessage, pull as gitPull, push as gitPush } from '../store/git'
 import { chatWithSelection, newConversation, setMode, toggleChat } from '../store/chat'
+import { openPlan } from '../store/ide'
 import {
   isDebugging,
   isPaused,
@@ -187,6 +188,8 @@ export const commands: Command[] = [
         { label: 'OK', value: 'ok', primary: true }
       ])
   },
+  { id: 'view.ask', title: 'Demander à l’IA (barre de titre)', category: 'IA', keybinding: 'Mod+E', run: () => useIde.setState({ askFocusNonce: Date.now() }) },
+  { id: 'view.plan', title: 'Plan de l’agent (revue des modifications)', category: 'Affichage', keybinding: 'Mod+Shift+A', run: () => openPlan() },
   { id: 'view.debug', title: 'Exécuter et déboguer', category: 'Affichage', keybinding: 'Mod+Shift+D', run: () => showSidebarView('debug') },
   {
     id: 'debug.start',

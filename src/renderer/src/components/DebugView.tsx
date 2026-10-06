@@ -23,9 +23,11 @@ import {
   stopDebugging,
   toggleBreakpointEnabled,
   toggleExpanded,
-  useDebug
+  useDebug,
+  type ConsoleEntry
 } from '../store/debug'
-import { openFile, useIde } from '../store/ide'
+import { openFile, reportError, useIde } from '../store/ide'
+import { addContext, focusChat, newConversation, sendMessage, setMode } from '../store/chat'
 import { basename, relative } from '../lib/paths'
 import { Icon } from './Icon'
 
@@ -295,11 +297,15 @@ export function DebugView() {
             )}
           </div>
           {active && <DebugControls />}
-          {status && (
-            <div className={`debug-status${session?.status === 'paused' ? ' paused' : ''}`}>
-              {status}
-              {session?.description && <div className="small">{session.description}</div>}
-            </div>
+          {session?.status === 'paused' && session.reason === 'exception' ? (
+            <ExceptionBanner description={session.description} />
+          ) : (
+            status && (
+              <div className={`debug-status${session?.status === 'paused' ? ' paused' : ''}`}>
+                {status}
+                {session?.description && <div className="small">{session.description}</div>}
+              </div>
+            )
           )}
           <div className="debug-sections">
             <Section title="Variables">
@@ -328,6 +334,49 @@ export function DebugView() {
   )
 }
 
+/** Exception non interceptée : résumé et correction par l'IA (avec la pile et les variables). */
+function ExceptionBanner({ description }: { description?: string }) {
+  const frame = useDebug((s) => s.frames.find((f) => f.path && !f.external) ?? s.frames[0])
+  const ws = useIde((s) => s.workspace) ?? ''
+  const where = frame?.path ? `${frame.path.startsWith(ws) ? relative(ws, frame.path) : basename(frame.path)}:${frame.line}` : null
+  return (
+    <div className="exception-banner">
+      <div className="exception-banner-top">
+        <span className="exception-chip">EXCEPTION NON INTERCEPTÉE</span>
+        {where && <span className="exception-where">{where}</span>}
+      </div>
+      <div className="exception-message">{description || 'Le programme s’est arrêté sur une exception.'}</div>
+      <div className="exception-actions">
+        <button
+          className="btn primary"
+          onClick={() => {
+            newConversation()
+            setMode('agent')
+            addContext({ kind: 'debug' })
+            focusChat()
+            sendMessage(
+              `Le programme s’est arrêté sur une exception non interceptée${description ? ` : « ${description} »` : ''}${where ? ` (${where})` : ''}. Analyse la pile d’appels et les variables jointes, trouve la cause racine, corrige le code et explique la correction.`
+            ).catch((err: unknown) => reportError('Envoi impossible', err))
+          }}
+        >
+          <Icon name="sparkle" /> Corriger avec l’IA
+        </button>
+        <button className="btn" onClick={() => void resume()}>
+          Continuer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+type ConsoleFilter = 'all' | 'errors' | 'output' | 'info'
+const FILTERS: Array<{ id: ConsoleFilter; label: string; kinds: ConsoleEntry['kind'][] }> = [
+  { id: 'all', label: 'Tout', kinds: [] },
+  { id: 'errors', label: 'Erreurs', kinds: ['stderr', 'error'] },
+  { id: 'output', label: 'Sortie', kinds: ['stdout', 'console', 'input', 'result'] },
+  { id: 'info', label: 'Infos', kinds: ['info'] }
+]
+
 /** Console de débogage (panneau du bas) : sortie du programme et évaluation d'expressions. */
 export function DebugConsole({ visible }: { visible: boolean }) {
   const entries = useDebug((s) => s.console)
@@ -336,16 +385,50 @@ export function DebugConsole({ visible }: { visible: boolean }) {
   const [history, setHistory] = useState<string[]>([])
   const [index, setIndex] = useState(-1)
   const listRef = useRef<HTMLDivElement>(null)
+  const [filter, setFilter] = useState<ConsoleFilter>('all')
+  const [search, setSearch] = useState('')
   useEffect(() => {
     const el = listRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [entries, visible])
+  const kinds = FILTERS.find((f) => f.id === filter)!.kinds
+  const shown = entries.filter((e) => (kinds.length === 0 || kinds.includes(e.kind)) && (!search || e.text.toLowerCase().includes(search.toLowerCase())))
+  const count = (f: (typeof FILTERS)[number]) => (f.kinds.length ? entries.filter((e) => f.kinds.includes(e.kind)).length : entries.length)
 
   return (
     <div className="debug-console" style={{ display: visible ? 'flex' : 'none' }}>
+      <div className="debug-console-filters">
+        {FILTERS.map((f) => (
+          <button key={f.id} className={`console-filter f-${f.id}${filter === f.id ? ' active' : ''}`} onClick={() => setFilter(f.id)}>
+            {f.label} <span>{count(f)}</span>
+          </button>
+        ))}
+        <div className="console-search">
+          <Icon name="search" />
+          <input value={search} placeholder="Filtrer la sortie…" onChange={(e) => setSearch(e.target.value)} aria-label="Filtrer la sortie" />
+        </div>
+        <button
+          className="link-button console-ai"
+          disabled={entries.length === 0}
+          onClick={() => {
+            const text = entries
+              .map((e) => `[${e.kind}] ${e.text}`)
+              .join('')
+              .slice(-12_000)
+            newConversation()
+            setMode('chat')
+            focusChat()
+            sendMessage(`Résume cette sortie de programme et signale les erreurs ou comportements suspects, avec leur cause probable :\n\n\`\`\`\n${text}\n\`\`\``).catch((err: unknown) =>
+              reportError('Envoi impossible', err)
+            )
+          }}
+        >
+          <Icon name="sparkle" /> Résumer avec l’IA
+        </button>
+      </div>
       <div className="debug-console-output" ref={listRef}>
         {entries.length === 0 && <div className="muted">La sortie du programme débogué s’affiche ici.</div>}
-        {entries.map((e) => (
+        {shown.map((e) => (
           <div key={e.id} className={`debug-console-line ${e.kind}`}>
             {e.kind === 'input' && <Icon name="chevron-right" />}
             {e.kind === 'result' && <Icon name="arrow-small-left" />}

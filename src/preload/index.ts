@@ -81,6 +81,7 @@ const api: IdeApi = {
     fetch: (cwd) => ipcRenderer.invoke('git:fetch', cwd),
     show: (cwd, ref, path) => ipcRenderer.invoke('git:show', cwd, ref, path),
     stagedDiff: (cwd) => ipcRenderer.invoke('git:stagedDiff', cwd),
+    numstat: (cwd) => ipcRenderer.invoke('git:numstat', cwd),
     log: (cwd, count) => ipcRenderer.invoke('git:log', cwd, count)
   },
   index: {
@@ -157,6 +158,9 @@ const api: IdeApi = {
     confirmClose: () => ipcRenderer.send('app:confirm-close'),
     setTitle: (title) => ipcRenderer.send('app:set-title', title),
     toggleFullScreen: () => ipcRenderer.send('app:toggle-fullscreen'),
+    setChromeTheme: (theme) => ipcRenderer.send('app:chrome-theme', theme),
+    popupMenu: (x, y) => ipcRenderer.send('app:popup-menu', x, y),
+    metrics: () => ipcRenderer.invoke('app:metrics'),
     dataInfo: () => ipcRenderer.invoke('app:dataInfo'),
     wipeDataAndQuit: () => ipcRenderer.send('app:wipe-data-and-quit')
   }

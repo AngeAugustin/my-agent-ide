@@ -63,6 +63,16 @@ export function parseStatus(out: string): Omit<GitStatus, 'isRepo'> {
   return { branch, upstream, ahead, behind, files }
 }
 
+/** Sortie de « git diff --numstat » : fichiers binaires comptés à 0. */
+export function parseNumstat(out: string): Record<string, { added: number; removed: number }> {
+  const result: Record<string, { added: number; removed: number }> = {}
+  for (const line of out.split('\n')) {
+    const m = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(line.trim())
+    if (m) result[m[3]] = { added: m[1] === '-' ? 0 : Number(m[1]), removed: m[2] === '-' ? 0 : Number(m[2]) }
+  }
+  return result
+}
+
 export async function gitStatus(cwd: string): Promise<GitStatus> {
   try {
     await git(cwd, ['rev-parse', '--is-inside-work-tree'])
@@ -125,6 +135,12 @@ export function registerGitHandlers(): void {
     } catch {
       return null
     }
+  })
+  ipcMain.handle('git:numstat', async (_e, cwd: string) => {
+    // Lignes ajoutées / supprimées par fichier (indexé ou non) par rapport au dernier commit.
+    const base = (await hasCommits(cwd)) ? ['HEAD'] : ['--cached']
+    const out = await git(cwd, ['diff', '--numstat', '--no-color', '--no-ext-diff', '--no-renames', ...base]).catch(() => '')
+    return parseNumstat(out)
   })
   ipcMain.handle('git:stagedDiff', async (_e, cwd: string) => truncate(await git(cwd, ['diff', '--cached', '--no-color', '--no-ext-diff'])))
   ipcMain.handle('git:log', async (_e, cwd: string, count: number) => {

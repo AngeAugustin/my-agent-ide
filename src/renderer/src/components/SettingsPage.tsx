@@ -8,6 +8,7 @@ import { LspSettings } from './LspSettings'
 import { WebSettings } from './WebSettings'
 import { commands } from '../lib/commands'
 import { formatKeybinding } from '../lib/keybindings'
+import { Icon } from './Icon'
 
 function Row({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -47,17 +48,17 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 type Section = 'general' | 'editor' | 'terminal' | 'files' | 'shortcuts' | 'ai' | 'index' | 'mcp' | 'lsp' | 'web'
 
-const SECTIONS: Array<{ id: Section; label: string }> = [
-  { id: 'general', label: 'Général' },
-  { id: 'editor', label: 'Éditeur' },
-  { id: 'lsp', label: 'Langages' },
-  { id: 'terminal', label: 'Terminal' },
-  { id: 'files', label: 'Fichiers' },
-  { id: 'ai', label: 'Modèles et clés API' },
-  { id: 'index', label: 'Indexation du code' },
-  { id: 'web', label: 'Web et documentation' },
-  { id: 'mcp', label: 'Serveurs MCP' },
-  { id: 'shortcuts', label: 'Raccourcis clavier' }
+const SECTIONS: Array<{ id: Section; label: string; icon: string; group: 'ia' | 'env'; title: string }> = [
+  { id: 'ai', label: 'Modèles et clés API', icon: 'sparkle', group: 'ia', title: 'Modèles, routage et règles de l’agent' },
+  { id: 'index', label: 'Indexation du code', icon: 'database', group: 'ia', title: 'Indexation vectorielle et recherche sémantique' },
+  { id: 'web', label: 'Web et documentation', icon: 'globe', group: 'ia', title: 'Recherche web et documentations' },
+  { id: 'mcp', label: 'Serveurs MCP', icon: 'plug', group: 'ia', title: 'Outils externes (Model Context Protocol)' },
+  { id: 'general', label: 'Général', icon: 'settings', group: 'env', title: 'Apparence, enregistrement et données' },
+  { id: 'editor', label: 'Éditeur', icon: 'code', group: 'env', title: 'Éditeur de code' },
+  { id: 'lsp', label: 'Langages', icon: 'symbol-namespace', group: 'env', title: 'Serveurs de langage' },
+  { id: 'terminal', label: 'Terminal', icon: 'terminal', group: 'env', title: 'Terminal intégré' },
+  { id: 'files', label: 'Fichiers', icon: 'files', group: 'env', title: 'Fichiers et dossiers exclus' },
+  { id: 'shortcuts', label: 'Raccourcis clavier', icon: 'keyboard', group: 'env', title: 'Raccourcis clavier' }
 ]
 
 function formatSize(bytes: number): string {
@@ -113,19 +114,43 @@ export function SettingsPage() {
   const section = useIde((st) => st.settingsSection) as Section
   const setSection = (id: Section) => useIde.setState({ settingsSection: id })
   const [filter, setFilter] = useState('')
+  const current = SECTIONS.find((x) => x.id === section)
   const set = (partial: Partial<Settings>) => updateSettings(partial)
 
   return (
     <div className="settings-page">
       <nav className="settings-nav">
         <h1>Paramètres</h1>
-        {SECTIONS.map((sec) => (
-          <button key={sec.id} className={section === sec.id ? 'active' : ''} onClick={() => setSection(sec.id)}>
-            {sec.label}
-          </button>
+        {(['ia', 'env'] as const).map((group) => (
+          <div key={group} className="settings-nav-group">
+            <div className="settings-nav-heading">{group === 'ia' ? 'INTELLIGENCE ARTIFICIELLE' : 'ENVIRONNEMENT'}</div>
+            {SECTIONS.filter((sec) => sec.group === group).map((sec) => (
+              <button key={sec.id} className={section === sec.id ? 'active' : ''} onClick={() => setSection(sec.id)}>
+                <Icon name={sec.icon} />
+                <span>{sec.label}</span>
+                {section === sec.id && <span className="settings-nav-dot" />}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
       <div className="settings-content">
+        {current && (
+          <div className="settings-hero">
+            <span className="settings-hero-icon">
+              <Icon name={current.icon} />
+            </span>
+            <div>
+              <div className="settings-hero-crumb">
+                PRÉFÉRENCES <span>›</span> <strong>{current.label.toUpperCase()}</strong>
+              </div>
+              <div className="settings-hero-title">{current.title}</div>
+            </div>
+            <span className="settings-hero-chip">
+              <span className="dot" /> Enregistrement automatique
+            </span>
+          </div>
+        )}
         {section === 'general' && (
           <>
             <h2>Général</h2>

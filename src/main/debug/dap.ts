@@ -101,6 +101,8 @@ export class DapDebugBackend implements DebugBackend {
     launched.catch(() => {})
     await Promise.race([initialized, launched.then(() => initialized)])
     for (const [path, bps] of this.wanted) await this.sendBreakpoints(path, bps)
+    // Arrêt sur les exceptions non interceptées.
+    await this.request('setExceptionBreakpoints', { filters: ['uncaught'] }).catch(() => {})
     await this.request('configurationDone').catch(() => {})
     this.configured = true
     await launched
@@ -128,7 +130,7 @@ export class DapDebugBackend implements DebugBackend {
         break
       case 'stopped':
         if (body.threadId) this.threadId = body.threadId
-        this.emit({ type: 'stopped', reason: body.reason ?? 'pause', description: body.text ?? body.description, threadId: body.threadId })
+        this.emit({ type: 'stopped', reason: body.reason ?? 'pause', description: body.text ?? (body.reason === 'exception' ? body.description : undefined), threadId: body.threadId })
         break
       case 'continued':
         this.emit({ type: 'continued' })

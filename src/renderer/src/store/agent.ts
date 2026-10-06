@@ -135,6 +135,8 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
 
       let text = ''
       let reasoning = ''
+      const requestStart = performance.now()
+      let firstSeen = i > 0
       let timer: ReturnType<typeof setTimeout> | null = null
       const flush = () => {
         timer = null
@@ -153,6 +155,11 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
           showReasoning: ide.settings.showReasoning
         },
         (ev) => {
+          if (!firstSeen && (ev.type === 'text' || ev.type === 'reasoning' || ev.type === 'tool_call')) {
+            firstSeen = true
+            const ttftMs = Math.round(performance.now() - requestStart)
+            updateTurn(convId, turnId, (t) => ({ ...t, ttftMs }))
+          }
           if (ev.type === 'text') text += ev.text
           else if (ev.type === 'reasoning') reasoning += ev.text
           else if (ev.type === 'notice') notices.push(ev.message)
@@ -233,7 +240,8 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
           onCommandOutput: (chunk) => patchTool(convId, turnId, step.id, idx, (r) => ({ ...r, live: ((r.live ?? '') + chunk).slice(-20_000) })),
           setCommandId: (id) => {
             current.commandId = id
-          }
+          },
+          setTodos: (todos) => updateTurn(convId, turnId, (t) => ({ ...t, todos }))
         })
         toolRun.output = outcome.output
         toolRun.isError = outcome.isError

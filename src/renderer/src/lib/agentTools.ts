@@ -36,6 +36,8 @@ export interface ToolContext {
   onCommandOutput(chunk: string): void
   /** Identifiant de la commande en cours (pour l'arrêter). */
   setCommandId(id: string | null): void
+  /** Met à jour la liste des sous-tâches affichée dans le chat. */
+  setTodos?(todos: Array<{ text: string; done: boolean }>): void
 }
 
 const MAX_READ_LINES = 2000
@@ -168,6 +170,17 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         if (hits.length === 0) return { output: 'Aucun extrait pertinent trouvé (l’index est peut-être en cours de construction).', isError: false }
         const body = hits.map((h) => `--- ${h.path} (lignes ${h.startLine}-${h.endLine})\n${h.text}`).join('\n\n')
         return { output: truncateOutput(body), isError: false }
+      }
+
+      case 'update_todos': {
+        const raw = Array.isArray(input.todos) ? input.todos : []
+        const todos = raw
+          .map((t) => (typeof t === 'string' ? { text: t, done: false } : { text: String((t as { text?: unknown }).text ?? ''), done: !!(t as { done?: unknown }).done }))
+          .filter((t) => t.text.trim())
+          .slice(0, 30)
+        ctx.setTodos?.(todos)
+        const done = todos.filter((t) => t.done).length
+        return { output: `Liste mise à jour : ${done}/${todos.length} sous-tâche(s) terminée(s).`, isError: false }
       }
 
       case 'web_search': {
@@ -339,6 +352,10 @@ export function describeTool(call: ToolCall): { icon: string; label: string } {
       return { icon: 'trash', label: `Suppression de ${path}` }
     case 'run_command':
       return { icon: 'terminal', label: String(input.command ?? '') }
+    case 'update_todos': {
+      const todos = Array.isArray(input.todos) ? (input.todos as Array<{ done?: boolean }>) : []
+      return { icon: 'checklist', label: `Sous-tâches : ${todos.filter((t) => t?.done).length}/${todos.length} terminée(s)` }
+    }
     case 'web_search':
       return { icon: 'globe', label: `Recherche web : « ${String(input.query ?? '')} »` }
     case 'fetch_url':

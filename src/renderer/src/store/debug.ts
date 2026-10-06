@@ -42,7 +42,7 @@ interface DebugState {
   configs: LaunchEntry[]
   /** Nom de la configuration choisie ('' : fichier actif). */
   selected: string
-  panelTab: 'terminal' | 'debug'
+  panelTab: 'terminal' | 'debug' | 'problems'
   /** Point d'arrêt dont la condition est en cours de modification. */
   editing: { path: string; line: number } | null
 }
@@ -426,7 +426,7 @@ async function refreshWatches(): Promise<void> {
   set({ watchValues: values })
 }
 
-export function setPanelTab(tab: 'terminal' | 'debug'): void {
+export function setPanelTab(tab: 'terminal' | 'debug' | 'problems'): void {
   set({ panelTab: tab })
 }
 

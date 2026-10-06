@@ -1,6 +1,5 @@
-import { openSettings, setSidebarWidth, showSidebarView, useIde, SETTINGS_TAB } from '../store/ide'
-import { toggleTerminalPanel } from '../store/terminals'
-import { toggleChat, useChat } from '../store/chat'
+import { openPlan, openSettings, setSidebarWidth, showSidebarView, useIde, PLAN_TAB, SETTINGS_TAB } from '../store/ide'
+import { usePlanCount } from '../store/plan'
 import { Explorer } from './Explorer'
 import { Icon } from './Icon'
 import { SearchView } from './SearchView'
@@ -12,40 +11,43 @@ import { useGit } from '../store/git'
 export function ActivityBar() {
   const view = useIde((s) => s.sidebarView)
   const visible = useIde((s) => s.sidebarVisible)
-  const settingsActive = useIde((s) => s.activeId === SETTINGS_TAB)
-  const panelVisible = useIde((s) => s.panelVisible)
-  const chatVisible = useChat((s) => s.visible)
-
+  const activeId = useIde((s) => s.activeId)
+  const section = useIde((s) => s.settingsSection)
   const changes = useGit((s) => s.status?.files.length ?? 0)
   const debugging = useDebug((s) => !!s.session && s.session.status !== 'terminated')
-  const item = (id: 'explorer' | 'search' | 'git' | 'debug', icon: string, title: string, badge = 0) => (
-    <button
-      className={`activity-item${visible && view === id ? ' active' : ''}`}
-      title={title}
-      aria-label={title}
-      onClick={() => (visible && view === id ? useIde.setState({ sidebarVisible: false }) : showSidebarView(id))}
-    >
+  const planChanges = usePlanCount()
+
+  const settingsActive = activeId === SETTINGS_TAB
+  const rulesActive = settingsActive && (section === 'ai' || section === 'index' || section === 'web')
+
+  const item = (key: string, icon: string, label: string, title: string, active: boolean, onClick: () => void, badge = 0) => (
+    <button key={key} className={`rail-item${active ? ' active' : ''}`} title={title} aria-label={title} aria-pressed={active} onClick={onClick}>
       <Icon name={icon} />
+      <span className="rail-label">{label}</span>
       {badge > 0 && <span className="activity-badge">{badge > 99 ? '99+' : badge}</span>}
     </button>
   )
+  const view_ = (id: 'explorer' | 'search' | 'git' | 'debug') => () =>
+    visible && view === id ? useIde.setState({ sidebarVisible: false }) : showSidebarView(id)
 
   return (
-    <nav className="activity-bar">
-      {item('explorer', 'files', 'Explorateur (Ctrl+Maj+E)')}
-      {item('search', 'search', 'Recherche (Ctrl+Maj+F)')}
-      {item('git', 'source-control', 'Contrôle de source (Ctrl+Maj+G)', changes)}
-      {item('debug', 'debug-alt', 'Exécuter et déboguer (Ctrl+Maj+D)', debugging ? 1 : 0)}
-      <button className={`activity-item${panelVisible ? ' active' : ''}`} title="Terminal (Ctrl+`)" aria-label="Terminal" onClick={toggleTerminalPanel}>
-        <Icon name="terminal" />
-      </button>
-      <button className={`activity-item${chatVisible ? ' active' : ''}`} title="Chat IA (Ctrl+L)" aria-label="Chat IA" onClick={() => toggleChat()}>
-        <Icon name="comment-discussion" />
-      </button>
-      <div className="activity-spacer" />
-      <button className={`activity-item${settingsActive ? ' active' : ''}`} title="Paramètres (Ctrl+,)" aria-label="Paramètres" onClick={() => openSettings()}>
-        <Icon name="settings-gear" />
-      </button>
+    <nav className="activity-bar rail">
+      <div className="rail-group">
+        {item('code', 'code', 'CODE', 'Explorateur (Ctrl+Maj+E)', visible && view === 'explorer', view_('explorer'))}
+        {item('search', 'search', 'RECH.', 'Recherche (Ctrl+Maj+F)', visible && view === 'search', view_('search'))}
+        {item('git', 'source-control', 'GIT', 'Contrôle de source (Ctrl+Maj+G)', visible && view === 'git', view_('git'), changes)}
+        {item('plan', 'type-hierarchy', 'PLAN', 'Plan de l’agent : revue des modifications (Ctrl+Maj+A)', activeId === PLAN_TAB, openPlan, planChanges)}
+        {item('rules', 'symbol-ruler', 'RÈGLES', 'Modèles, règles et indexation', rulesActive, () => openSettings('ai'))}
+        {item('debug', 'debug-alt', 'DÉBOG.', 'Exécuter et déboguer (Ctrl+Maj+D)', visible && view === 'debug', view_('debug'), debugging ? 1 : 0)}
+      </div>
+      <div className="rail-group bottom">
+        <button className="rail-icon" title="Serveurs MCP" aria-label="Serveurs MCP" onClick={() => openSettings('mcp')}>
+          <Icon name="extensions" />
+        </button>
+        <button className={`rail-icon${settingsActive && !rulesActive ? ' active' : ''}`} title="Paramètres (Ctrl+,)" aria-label="Paramètres" onClick={() => openSettings()}>
+          <Icon name="settings-gear" />
+        </button>
+      </div>
     </nav>
   )
 }

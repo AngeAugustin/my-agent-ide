@@ -19,6 +19,7 @@ import {
 import { fileIcon } from '../lib/fileIcons'
 import { basename, dirname, isInside, join, relative, validateFileName } from '../lib/paths'
 import { Icon } from './Icon'
+import { ExplorerPanels } from './ExplorerPanels'
 import { showContextMenu, type MenuItem } from './ContextMenu'
 import { newTerminal } from '../store/terminals'
 import { gitDecorations, useGit } from '../store/git'
@@ -323,6 +324,7 @@ export function Explorer() {
       >
         <TreeChildren dir={workspace} entries={rootEntries} depth={0} />
       </div>
+      <ExplorerPanels />
     </div>
   )
 }
