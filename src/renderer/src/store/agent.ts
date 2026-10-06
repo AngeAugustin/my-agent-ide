@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { AGENT_TOOLS, MUTATING_TOOLS, WEB_TOOLS, resolveWorkspacePath, type ToolName } from '@shared/agent'
 import { stopReasonNotice, type ModelRef } from '@shared/ai'
+import { READ_ONLY_TOOLS, type AssistantMode } from '@shared/modes'
 import { formatTokens, streamChat, type ChatHandle } from '../lib/ai'
 import { estimateTokens, summaryPreamble } from '@shared/compaction'
 import { needsCompaction, summarizeHistory } from '../lib/compaction'
@@ -79,7 +80,7 @@ function patchTool(convId: string, turnId: string, stepId: string, index: number
   patchStep(convId, turnId, stepId, (s) => ({ ...s, tools: s.tools.map((r, i) => (i === index ? fn(r) : r)) }))
 }
 
-async function runAgent(convId: string, turnId: string, userTurnId: string, model: ModelRef, turns: Turn[]): Promise<void> {
+async function runAgent(convId: string, turnId: string, userTurnId: string, model: ModelRef, turns: Turn[], mode: AssistantMode = 'agent'): Promise<void> {
   const ide = useIde.getState()
   const root = ide.workspace!
   const settings = ide.settings.agent
@@ -102,7 +103,11 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
   const mcp = mcpTools()
   const hasDocs = (await window.api.docs.list().catch(() => [])).some((d) => d.chunks > 0)
   const webTools = ide.settings.web.agentTools ? WEB_TOOLS.filter((t) => t.name !== 'docs_search' || hasDocs) : []
-  const toolDefinitions = [...AGENT_TOOLS, ...webTools, ...mcp.definitions]
+  // Mode Plan : lecture et recherche uniquement (ni modification, ni commande, ni outil MCP).
+  const readOnly = mode === 'plan'
+  const toolDefinitions = readOnly
+    ? [...AGENT_TOOLS, ...webTools].filter((t) => READ_ONLY_TOOLS.includes(t.name))
+    : [...AGENT_TOOLS, ...webTools, ...mcp.definitions]
 
   try {
     for (let i = 0; i < settings.maxSteps && !current.stopped; i++) {
@@ -226,7 +231,8 @@ async function runAgent(convId: string, turnId: string, userTurnId: string, mode
             if (!(path in checkpoint)) checkpoint[path] = original
             updateUserTurn(convId, userTurnId, (u) => ({ ...u, checkpoint: { files: { ...checkpoint } } }))
           },
-          mcp: mcp.refs,
+          mcp: readOnly ? undefined : mcp.refs,
+          readOnly,
           approve: (command, mcpRef) =>
             new Promise<boolean>((resolve) => {
               if (current.stopped) return resolve(false)

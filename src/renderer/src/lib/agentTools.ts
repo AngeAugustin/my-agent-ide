@@ -8,6 +8,7 @@ import {
   type ToolName
 } from '@shared/agent'
 import type { ToolCall } from '@shared/ai'
+import { READ_ONLY_TOOLS } from '@shared/modes'
 import * as models from './editorModels'
 import { monaco } from './monaco'
 import { diffLines, diffStats } from './diff'
@@ -36,6 +37,8 @@ export interface ToolContext {
   onCommandOutput(chunk: string): void
   /** Identifiant de la commande en cours (pour l'arrêter). */
   setCommandId(id: string | null): void
+  /** Mode Plan : aucun outil de modification ni commande. */
+  readOnly?: boolean
   /** Met à jour la liste des sous-tâches affichée dans le chat. */
   setTodos?(todos: Array<{ text: string; done: boolean }>): void
 }
@@ -96,6 +99,9 @@ async function snapshotIfNeeded(ctx: ToolContext, path: string): Promise<string 
 export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<ToolOutcome> {
   if (call.inputError !== undefined) {
     return { output: JSON.stringify({ INVALID_JSON: call.inputError.slice(0, 2000) }), isError: true }
+  }
+  if (ctx.readOnly && !READ_ONLY_TOOLS.includes(call.name as ToolName)) {
+    return { output: 'Mode Plan : cet outil est désactivé. Ne modifie rien et n’exécute aucune commande ; termine ton plan.', isError: true }
   }
   const mcp = ctx.mcp?.get(call.name)
   if (mcp) return executeMcpTool(call, mcp, ctx)

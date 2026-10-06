@@ -13,6 +13,7 @@ import {
 } from '@shared/debug'
 import { basename, join } from '../lib/paths'
 import { notify, openFile, reportError, saveAll, showSidebarView, togglePanel, useIde } from './ide'
+import { registerDebugContextProvider } from './chat'
 
 export interface ConsoleEntry {
   id: number
@@ -482,6 +483,7 @@ let initialized = false
 export function initDebug(): void {
   if (initialized) return
   initialized = true
+  registerDebugContextProvider(() => get().session?.status === 'paused')
   window.api.debug.onEvent(onEvent)
   restore()
   void loadLaunchConfigs()

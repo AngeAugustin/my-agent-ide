@@ -8,11 +8,13 @@ export type { AgentStep, AgentToolRun, ToolRunStatus } from '../lib/agentHistory
 import { streamChat, type ChatHandle } from '../lib/ai'
 import { contextKey, resolveContext, type ContextItem } from '../lib/context'
 import { getActiveEditor } from '../lib/activeEditor'
+import { focusedTerminalSelection } from '../lib/terminalRegistry'
 import { currentSelection } from '../lib/context'
 import { buildUserMessage, chatSystemPrompt, type ResolvedContext } from '../lib/prompts'
 import { isInside, relative } from '../lib/paths'
 import { useIde } from './ide'
 import { stopReasonNotice } from '@shared/ai'
+import { ASSISTANT_MODES, modePreamble, normalizeMode, usesTools, type AssistantMode } from '@shared/modes'
 import { estimateTokens, type ConversationSummary } from '@shared/compaction'
 import { contextWindow, needsCompaction, summarizeHistory } from '../lib/compaction'
 import { formatTokens } from '../lib/ai'
@@ -28,6 +30,8 @@ export interface UserTurn {
   truncated: string[]
   /** Heure d'envoi. */
   at?: number
+  /** Mode choisi pour ce message (Agent, Plan, Ask, Debug). */
+  mode?: AssistantMode
   /** Mode Agent : état des fichiers avant les modifications de ce tour (null = fichier inexistant). */
   checkpoint?: { files: Record<string, string | null>; restored?: boolean }
 }
@@ -87,8 +91,8 @@ interface ChatState {
   compactingId: string | null
   focusNonce: number
   loadedFor: string | null | undefined
-  /** Mode choisi pour la prochaine nouvelle conversation. */
-  mode: 'chat' | 'agent'
+  /** Mode du prochain message. */
+  mode: AssistantMode
 }
 
 export const useChat = create<ChatState>()(() => ({
@@ -103,8 +107,16 @@ export const useChat = create<ChatState>()(() => ({
   compactingId: null,
   focusNonce: 0,
   loadedFor: undefined,
-  mode: 'chat'
+  mode: readMode()
 }))
+
+function readMode(): AssistantMode {
+  try {
+    return normalizeMode(localStorage.getItem('chat:mode') ?? 'agent')
+  } catch {
+    return 'agent'
+  }
+}
 
 const set = useChat.setState
 const get = useChat.getState
@@ -216,6 +228,12 @@ export function setIncludeActiveFile(value: boolean): void {
 
 /** Ctrl+L : ouvre le chat et y ajoute la sélection courante, s'il y en a une. */
 export function chatWithSelection(toggle: boolean): void {
+  const terminalText = focusedTerminalSelection()
+  if (terminalText) {
+    addContext({ kind: 'snippet', source: 'terminal', text: terminalText })
+    focusChat()
+    return
+  }
   const selection = currentSelection(getActiveEditor(), useIde.getState().activeId)
   if (selection) {
     addContext(selection)
@@ -326,40 +344,46 @@ export async function sendMessage(text: string): Promise<void> {
   const ide = useIde.getState()
 
   let conv = activeConversation()
-  const mode = conv?.mode ?? get().mode
+  const mode = get().mode
+  const tools = usesTools(mode)
   const models = ide.settings.ai.models
-  const model = conv?.model ?? (mode === 'agent' ? (models.agent ?? models.chat) : models.chat)
+  const model = conv?.model ?? (tools ? (models.agent ?? models.chat) : models.chat)
   if (!model) {
     throw new Error(
-      mode === 'agent'
+      tools
         ? 'Aucun modèle n’est configuré pour l’agent. Choisissez-en un dans Paramètres › Modèles et clés API.'
         : 'Aucun modèle de chat n’est configuré. Choisissez-en un dans Paramètres › Modèles et clés API.'
     )
   }
-  if (mode === 'agent' && !ide.workspace) throw new Error('Ouvrez un dossier pour utiliser l’agent.')
-  if (mode === 'agent' && !agentRunner) throw new Error('Le mode Agent n’est pas disponible.')
+  if (tools && !ide.workspace) throw new Error(`Ouvrez un dossier pour utiliser le mode ${ASSISTANT_MODES.find((m) => m.id === mode)!.label}.`)
+  if (tools && !agentRunner) throw new Error('Le mode Agent n’est pas disponible.')
 
   if (!conv) {
     // Les règles sont figées dans le prompt système à la création de la conversation.
     const ruleFiles = pendingContexts().flatMap((c) => (c.kind === 'file' || c.kind === 'selection' || c.kind === 'folder' ? [c.path] : []))
-    const rules = await rulesSection(ruleFiles, { listAvailable: mode === 'agent' })
+    const rules = await rulesSection(ruleFiles, { listAvailable: tools })
     conv = {
       id: newId('conv'),
       title: question.replace(/\s+/g, ' ').slice(0, 60),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       system:
-        (mode === 'agent'
+        (tools
           ? agentSystemPrompt({ os: osName(), workspace: ide.workspace!, date: new Date().toISOString().slice(0, 10) })
           : chatSystemPrompt({ os: osName(), workspace: ide.workspace, activeFile: null })) + rules.text,
       model,
-      mode,
+      mode: tools ? 'agent' : 'chat',
       turns: []
     }
     set((s) => ({ conversations: [conv!, ...s.conversations], activeId: conv!.id }))
   }
 
   const items = pendingContexts()
+  // Mode Debug : l'état du débogueur et les problèmes de l'éditeur sont joints d'office.
+  if (mode === 'debug') {
+    if (!items.some((i) => i.kind === 'problems')) items.push({ kind: 'problems' })
+    if (debugContextProvider?.() && !items.some((i) => i.kind === 'debug')) items.push({ kind: 'debug' })
+  }
   const resolved: ResolvedContext[] = []
   const truncated: string[] = []
   const errors: string[] = []
@@ -377,16 +401,22 @@ export async function sendMessage(text: string): Promise<void> {
   const images = items.filter((i): i is Extract<ContextItem, { kind: 'image' }> => i.kind === 'image')
   const activeFile = ide.activeId && !ide.activeId.startsWith('ide://') ? relPath(ide.activeId) : null
   const header = activeFile ? `(Fichier ouvert dans l’éditeur : ${activeFile})\n\n` : ''
+  const preamble = modePreamble(mode, conv.mode === 'agent' ? 'agent' : 'chat')
 
   const userTurn: UserTurn = {
     id: newId('u'),
     role: 'user',
     text: question,
     contexts: items.map((i) => (i.kind === 'image' ? { ...i, data: '' } : i)),
-    sent: (conv.pendingNote ? `${conv.pendingNote}\n\n` : '') + header + buildUserMessage(question, resolved),
+    sent:
+      (conv.pendingNote ? `${conv.pendingNote}\n\n` : '') +
+      (preamble ? `${preamble}\n\n` : '') +
+      header +
+      buildUserMessage(question, resolved),
     images: images.map((i) => ({ name: i.name, mediaType: i.mediaType, data: i.data })),
     truncated,
-    at: Date.now()
+    at: Date.now(),
+    mode
   }
   const assistant: AssistantTurn = {
     id: newId('a'),
@@ -424,7 +454,7 @@ export async function sendMessage(text: string): Promise<void> {
     }))
     turns = get().conversations.find((c) => c.id === convId)!.turns.filter((t) => t.id !== assistant.id)
   }
-  if (mode === 'agent') await agentRunner!(convId, assistant.id, userTurn.id, model, turns)
+  if (tools) await agentRunner!(convId, assistant.id, userTurn.id, model, turns, mode)
   else await runAssistant(convId, assistant.id, model, turns)
 }
 
@@ -432,7 +462,13 @@ export async function sendMessage(text: string): Promise<void> {
 // Mode Agent (le moteur est enregistré par store/agent.ts)
 // ---------------------------------------------------------------------------
 
-type AgentRunner = (convId: string, assistantId: string, userTurnId: string, model: ModelRef, turns: Turn[]) => Promise<void>
+type AgentRunner = (convId: string, assistantId: string, userTurnId: string, model: ModelRef, turns: Turn[], mode: AssistantMode) => Promise<void>
+
+/** Indique si le débogueur est en pause (fourni par store/debug.ts, pour le mode Debug). */
+let debugContextProvider: (() => boolean) | null = null
+export function registerDebugContextProvider(fn: () => boolean): void {
+  debugContextProvider = fn
+}
 let agentRunner: AgentRunner | null = null
 let agentStopper: (() => void) | null = null
 
@@ -441,8 +477,13 @@ export function registerAgentRunner(run: AgentRunner, stop: () => void): void {
   agentStopper = stop
 }
 
-export function setMode(mode: 'chat' | 'agent'): void {
+export function setMode(mode: AssistantMode): void {
   set({ mode })
+  try {
+    localStorage.setItem('chat:mode', mode)
+  } catch {
+    // stockage indisponible
+  }
 }
 
 export function setStreaming(id: string | null): void {
@@ -532,7 +573,7 @@ export async function retryLast(): Promise<void> {
   const model = conv.model ?? useIde.getState().settings.ai.models.chat
   if (!model) return
   // En mode Agent, les actions déjà effectuées restent dans l'historique : on demande de reprendre.
-  if (conv.mode === 'agent') return sendMessage('Reprends la tâche là où tu t’es arrêté.')
+  if (lastAssistant.steps) return sendMessage('Reprends la tâche là où tu t’es arrêté.')
   const turns = conv.turns.filter((t) => t.id !== lastAssistant.id)
   const fresh: AssistantTurn = { id: newId('a'), role: 'assistant', text: '', reasoning: '', model, status: 'streaming', notices: [] }
   updateConversation(conv.id, (c) => ({ ...c, turns: [...turns, fresh] }))

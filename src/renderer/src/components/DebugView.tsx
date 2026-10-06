@@ -351,7 +351,7 @@ function ExceptionBanner({ description }: { description?: string }) {
           className="btn primary"
           onClick={() => {
             newConversation()
-            setMode('agent')
+            setMode('debug')
             addContext({ kind: 'debug' })
             focusChat()
             sendMessage(
@@ -416,7 +416,7 @@ export function DebugConsole({ visible }: { visible: boolean }) {
               .join('')
               .slice(-12_000)
             newConversation()
-            setMode('chat')
+            setMode('ask')
             focusChat()
             sendMessage(`Résume cette sortie de programme et signale les erreurs ou comportements suspects, avec leur cause probable :\n\n\`\`\`\n${text}\n\`\`\``).catch((err: unknown) =>
               reportError('Envoi impossible', err)

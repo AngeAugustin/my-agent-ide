@@ -75,7 +75,7 @@ function ActiveDiffset() {
         title="Demande à l’IA une revue du diff Git"
         onClick={() => {
           newConversation()
-          setMode('chat')
+          setMode('ask')
           addContext({ kind: 'git' })
           focusChat()
           sendMessage('Fais une revue de mes modifications : bugs probables, cas limites, sécurité et lisibilité. Classe les remarques par importance et propose les corrections.').catch((err: unknown) =>

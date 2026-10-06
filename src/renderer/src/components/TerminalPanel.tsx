@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -15,6 +15,7 @@ import {
 import { Icon } from './Icon'
 import { registerTerminal } from '../lib/terminalRegistry'
 import { DebugConsole } from './DebugView'
+import { addContext, focusChat } from '../store/chat'
 import { ProblemsView, useProblemCount } from './ProblemsView'
 import { create } from 'zustand'
 
@@ -71,6 +72,7 @@ window.api.terminal.onExit((id) => {
 
 function TerminalView({ info, visible }: { info: TerminalInfo; visible: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [selectionText, setSelectionText] = useState('')
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const ptyRef = useRef<number | null>(null)
@@ -145,8 +147,11 @@ function TerminalView({ info, visible }: { info: TerminalInfo; visible: boolean 
       },
       ptyId: () => ptyRef.current,
       paste: (text) => term.paste(text),
-      focus: () => term.focus()
+      focus: () => term.focus(),
+      selection: () => term.getSelection(),
+      hasFocus: () => !!ref.current?.contains(document.activeElement)
     })
+    const selectionSub = term.onSelectionChange(() => setSelectionText(term.hasSelection() ? term.getSelection().replace(/\s+$/, '') : ''))
 
     const observer = new ResizeObserver(() => {
       if (ref.current && ref.current.offsetWidth > 0 && ref.current.offsetHeight > 0) {
@@ -162,6 +167,7 @@ function TerminalView({ info, visible }: { info: TerminalInfo; visible: boolean 
     return () => {
       disposed = true
       unregister()
+      selectionSub.dispose()
       observer.disconnect()
       dataSub.dispose()
       resizeSub.dispose()
@@ -195,7 +201,24 @@ function TerminalView({ info, visible }: { info: TerminalInfo; visible: boolean 
     })
   }, [visible])
 
-  return <div ref={ref} className="terminal-view" style={{ display: visible ? 'block' : 'none' }} />
+  return (
+    <div className="terminal-view" style={{ display: visible ? 'block' : 'none' }}>
+      <div ref={ref} className="terminal-host" />
+      {selectionText && (
+        <button
+          className="terminal-send-chat"
+          title="Joindre la sélection à la conversation (Ctrl+L)"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            addContext({ kind: 'snippet', source: 'terminal', text: selectionText })
+            focusChat()
+          }}
+        >
+          <Icon name="comment-discussion" /> Envoyer au chat
+        </button>
+      )}
+    </div>
+  )
 }
 
 export function TerminalPanel() {

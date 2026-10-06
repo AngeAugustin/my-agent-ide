@@ -13,6 +13,8 @@ export type ContextItem =
   | { kind: 'problems' }
   | { kind: 'git' }
   | { kind: 'terminal' }
+  /** Texte sélectionné dans le terminal. */
+  | { kind: 'snippet'; source: 'terminal'; text: string }
   | { kind: 'codebase' }
   | { kind: 'web' }
   | { kind: 'debug' }
@@ -33,6 +35,8 @@ export function contextKey(item: ContextItem): string {
       return `docs:${item.id}`
     case 'url':
       return `url:${item.url}`
+    case 'snippet':
+      return `snippet:${item.text.length}:${item.text.slice(0, 80)}`
     default:
       return item.kind
   }
@@ -57,6 +61,10 @@ export function contextLabel(item: ContextItem): string {
       return 'Modifications Git'
     case 'terminal':
       return 'Terminal'
+    case 'snippet': {
+      const lines = item.text.split('\n').length
+      return `Terminal (${lines} ligne${lines > 1 ? 's' : ''})`
+    }
     case 'codebase':
       return 'Codebase'
     case 'web':
@@ -82,6 +90,7 @@ export function contextIcon(item: ContextItem): string {
     terminal: 'terminal',
     codebase: 'database',
     web: 'globe',
+    snippet: 'terminal',
     debug: 'debug-alt',
     docs: 'book',
     url: 'link',
@@ -180,6 +189,8 @@ export async function resolveContext(item: ContextItem, question = ''): Promise<
         : 'Aucun extrait pertinent trouvé (la documentation est peut-être encore en cours d’indexation).'
       return { label: item.name, text: `<documentation nom="${attr(item.name)}">\n${body}\n</documentation>` }
     }
+    case 'snippet':
+      return { label: contextLabel(item), text: `<selection_terminal>\n\`\`\`\n${item.text}\n\`\`\`\n</selection_terminal>` }
     case 'debug':
       return { label: 'Débogueur', text: `<debogueur>\n${await debugContextText()}\n</debogueur>` }
     case 'url': {

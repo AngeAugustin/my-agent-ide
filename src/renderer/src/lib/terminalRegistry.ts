@@ -6,6 +6,10 @@ interface TerminalAccess {
   /** Colle comme le ferait l'utilisateur (xterm gère le mode « collage entre crochets » du shell). */
   paste(text: string): void
   focus(): void
+  /** Texte sélectionné ('' si aucune sélection). */
+  selection(): string
+  /** Vrai si le terminal a le focus clavier. */
+  hasFocus(): boolean
 }
 
 const registry = new Map<number, TerminalAccess>()
@@ -72,4 +76,13 @@ export function runCommandFor(path: string, platform = window.api.platform): str
     default:
       return null
   }
+}
+
+/** Sélection du terminal actif quand il a le focus (pour Ctrl+L). */
+export function focusedTerminalSelection(): string | null {
+  const key = useTerminals.getState().activeKey
+  const access = key !== null ? registry.get(key) : undefined
+  if (!access?.hasFocus()) return null
+  const text = access.selection().replace(/\s+$/, '')
+  return text ? text : null
 }

@@ -30,6 +30,7 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { basename, dirname, isInside, relative } from '../lib/paths'
 import { formatTokens } from '../lib/ai'
 import { Markdown } from './Markdown'
+import { ASSISTANT_MODES, usesTools, type AssistantMode } from '@shared/modes'
 import { AgentAssistantTurn, ChangedFiles } from './AgentTurn'
 import { Icon } from './Icon'
 import { useWeb } from '../store/web'
@@ -115,7 +116,7 @@ function useMentionOptions(query: string | null): MentionOption[] {
 function ContextChip({ item, onRemove, dim, onClick, title }: { item: ContextItem; onRemove?: () => void; dim?: boolean; onClick?: () => void; title?: string }) {
   return (
     <span className={`context-chip${dim ? ' dim' : ''}`} title={title ?? (item.kind === 'file' || item.kind === 'folder' || item.kind === 'selection' ? item.path : item.kind === 'url' ? item.url : contextLabel(item))} onClick={onClick}>
-      <Icon name={contextIcon(item)} />
+      {item.kind === 'image' && item.data ? <img className="context-chip-thumb" src={`data:${item.mediaType};base64,${item.data}`} alt="" /> : <Icon name={contextIcon(item)} />}
       <span className="context-chip-label">{contextLabel(item)}</span>
       {onRemove && (
         <button className="context-chip-remove" title="Retirer" onClick={(e) => { e.stopPropagation(); onRemove() }}>
@@ -127,11 +128,17 @@ function ContextChip({ item, onRemove, dim, onClick, title }: { item: ContextIte
 }
 
 function UserMessage({ turn }: { turn: UserTurn }) {
+  const meta = turn.mode ? ASSISTANT_MODES.find((m) => m.id === turn.mode) : undefined
   return (
     <div className="chat-message user">
       <div className="message-author">
         <span>
           <Icon name="account" /> Vous
+          {meta && (
+            <span className={`mode-badge m-${meta.id}`}>
+              <Icon name={meta.icon} /> {meta.label}
+            </span>
+          )}
         </span>
         {turn.at && <span className="muted">{new Date(turn.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>}
       </div>
@@ -143,6 +150,13 @@ function UserMessage({ turn }: { turn: UserTurn }) {
         </div>
       )}
       <div className="user-text">{turn.text}</div>
+      {turn.images.length > 0 && (
+        <div className="message-images">
+          {turn.images.map((img, i) => (
+            <img key={i} src={`data:${img.mediaType};base64,${img.data}`} alt={img.name} title={img.name} />
+          ))}
+        </div>
+      )}
       {turn.truncated.length > 0 && <div className="chat-notice">Contenu tronqué (trop volumineux) : {turn.truncated.join(', ')}</div>}
     </div>
   )
@@ -205,29 +219,35 @@ function AssistantMessage({ turn, last }: { turn: AssistantTurn; last: boolean }
   )
 }
 
+const EMPTY_TEXT: Record<AssistantMode, { title: string; body: string }> = {
+  agent: {
+    title: 'Confiez une tâche à l’agent',
+    body: 'L’agent explore le projet, modifie les fichiers et lance des commandes (avec votre accord) jusqu’à terminer la tâche. Chaque demande crée un point de restauration pour tout annuler.'
+  },
+  plan: {
+    title: 'Préparez un plan avant de coder',
+    body: 'L’IA analyse le projet sans rien modifier et propose un plan détaillé : fichiers concernés, étapes, tests et risques. Vous pourrez ensuite le faire exécuter par l’agent.'
+  },
+  ask: {
+    title: 'Posez une question sur votre code',
+    body: 'Réponses sans modification du projet. Tapez @ pour joindre fichiers, dossiers, problèmes, diff Git, terminal, web ou documentation ; Ctrl+L ajoute la sélection.'
+  },
+  debug: {
+    title: 'Traquez un bug avec méthode',
+    body: 'Décrivez le problème : l’IA le reproduit, vérifie ses hypothèses avec des preuves, corrige la cause racine puis le prouve. L’état du débogueur et les problèmes sont joints automatiquement.'
+  }
+}
+
 function EmptyState() {
   const mode = useChat((s) => s.mode)
-  const hasModel = useIde((s) => !!(mode === 'agent' ? s.settings.ai.models.agent ?? s.settings.ai.models.chat : s.settings.ai.models.chat))
+  const tools = usesTools(mode)
+  const hasModel = useIde((s) => !!(tools ? s.settings.ai.models.agent ?? s.settings.ai.models.chat : s.settings.ai.models.chat))
+  const meta = ASSISTANT_MODES.find((m) => m.id === mode)!
   return (
     <div className="chat-empty">
-      <Icon name={mode === 'agent' ? 'hubot' : 'sparkle'} />
-      {mode === 'agent' ? (
-        <>
-          <h3>Confiez une tâche à l’agent</h3>
-          <p className="muted">
-            L’agent explore le projet, modifie les fichiers et lance des commandes (avec votre accord) jusqu’à terminer la tâche. Chaque demande crée un
-            point de restauration pour tout annuler.
-          </p>
-        </>
-      ) : (
-        <>
-          <h3>Posez une question sur votre code</h3>
-          <p className="muted">
-            Tapez <kbd>@</kbd> pour joindre des fichiers, des dossiers, les problèmes, le diff Git, le terminal, le web, une documentation ou une adresse (<code>@https://…</code>). Sélectionnez du code puis{' '}
-            <kbd>Ctrl+L</kbd> pour l’ajouter à la conversation.
-          </p>
-        </>
-      )}
+      <Icon name={meta.icon} />
+      <h3>{EMPTY_TEXT[mode].title}</h3>
+      <p className="muted">{EMPTY_TEXT[mode].body}</p>
       {!hasModel && (
         <button className="btn primary" onClick={() => openSettings('ai')}>
           Configurer un modèle
@@ -242,9 +262,8 @@ function EmptyState() {
 // ---------------------------------------------------------------------------
 
 function ModelSelect({ conv }: { conv?: Conversation }) {
-  const mode = conv?.mode ?? useChat.getState().mode
-  const role = mode === 'agent' ? 'agent' : 'chat'
-  useChat((s) => s.mode)
+  const mode = useChat((s) => s.mode)
+  const role = usesTools(mode) ? 'agent' : 'chat'
   const fallback = useIde((s) => (role === 'agent' ? s.settings.ai.models.agent ?? s.settings.ai.models.chat : s.settings.ai.models.chat))
   useAi((s) => s.providers)
   const current = conv?.model ?? fallback
@@ -280,6 +299,27 @@ function ModelSelect({ conv }: { conv?: Conversation }) {
     </select>
   )
 }
+
+/** Mode du prochain message : Agent, Plan, Ask ou Debug. */
+function ModeSelect() {
+  const mode = useChat((s) => s.mode)
+  const meta = ASSISTANT_MODES.find((m) => m.id === mode)!
+  return (
+    <label className={`chat-mode-select m-${mode}`} title={meta.description}>
+      <Icon name={meta.icon} />
+      <select value={mode} onChange={(e) => setMode(e.target.value as AssistantMode)} aria-label="Mode de l’assistant">
+        {ASSISTANT_MODES.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
+        ))}
+      </select>
+      <Icon name="chevron-down" className="chat-mode-caret" />
+    </label>
+  )
+}
+
+const MAX_IMAGE = 5 * 1024 * 1024
 
 function ChatInput({ conv }: { conv?: Conversation }) {
   const [text, setText] = useState('')
@@ -373,26 +413,62 @@ function ChatInput({ conv }: { conv?: Conversation }) {
     }
   }
 
-  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
-    const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
-    if (files.length === 0) return
-    e.preventDefault()
+  const addImages = (list: FileList | File[]) => {
+    const files = [...list].filter((f) => /^image\/(png|jpe?g|gif|webp)$/.test(f.type))
+    if (list.length > 0 && files.length === 0) setError('Formats d’image acceptés : PNG, JPEG, GIF, WebP.')
     for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > MAX_IMAGE) {
         setError(`Image trop volumineuse (${Math.round(file.size / 1024 / 1024)} Mo, maximum 5 Mo).`)
         continue
       }
       const reader = new FileReader()
       reader.onload = () => {
         const data = String(reader.result).split(',')[1] ?? ''
-        addContext({ kind: 'image', name: file.name || `image-${Date.now()}.png`, mediaType: file.type, data })
+        addContext({ kind: 'image', name: file.name || `capture-${new Date().toLocaleTimeString('fr-FR').replace(/:/g, '-')}.png`, mediaType: file.type, data })
       }
       reader.readAsDataURL(file)
     }
   }
 
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
+    if (files.length === 0) return
+    e.preventDefault()
+    addImages(files)
+  }
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+
   return (
-    <div className="chat-input">
+    <div
+      className={`chat-input${dragOver ? ' drag-over' : ''}`}
+      onDragOver={(e) => {
+        if (![...e.dataTransfer.types].includes('Files')) return
+        e.preventDefault()
+        setDragOver(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false)
+      }}
+      onDrop={(e) => {
+        if (e.dataTransfer.files.length === 0) return
+        e.preventDefault()
+        setDragOver(false)
+        addImages(e.dataTransfer.files)
+      }}
+    >
+      {dragOver && <div className="chat-drop-hint">Déposez l’image pour la joindre</div>}
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        multiple
+        hidden
+        onChange={(e) => {
+          if (e.target.files) addImages(e.target.files)
+          e.target.value = ''
+        }}
+      />
       {mention && options.length > 0 && (
         <div className="mention-popup" role="listbox">
           {options.map((o, i) => (
@@ -451,9 +527,13 @@ function ChatInput({ conv }: { conv?: Conversation }) {
         value={text}
         rows={2}
         placeholder={
-          (conv?.mode ?? mode) === 'agent'
+          mode === 'agent'
             ? 'Dites à l’agent quoi refactoriser, déboguer ou construire…'
-            : 'Posez une question sur votre code, @ pour joindre du contexte…'
+            : mode === 'plan'
+              ? 'Décrivez ce que vous voulez construire : l’IA prépare un plan…'
+              : mode === 'debug'
+                ? 'Décrivez le bug : symptôme, message d’erreur, comment le reproduire…'
+                : 'Posez une question sur votre code, @ pour joindre du contexte…'
         }
         spellCheck={false}
         onChange={(e) => {
@@ -471,9 +551,13 @@ function ChatInput({ conv }: { conv?: Conversation }) {
         </div>
       )}
       <div className="chat-input-footer">
+        <ModeSelect />
         <ModelSelect conv={conv} />
         {conv && <ContextGauge conv={conv} disabled={streaming} onError={setError} />}
         <span className="chat-input-spacer" />
+        <button className="icon-button chat-image-button" title="Joindre une image (ou collez-la avec Ctrl+V, ou glissez-la ici)" aria-label="Joindre une image" onClick={() => fileInput.current?.click()}>
+          <Icon name="file-media" />
+        </button>
         {streaming ? (
           <button className="btn send-button" title="Arrêter la génération" onClick={stopStreaming}>
             <Icon name="debug-stop" /> Arrêter
@@ -560,31 +644,6 @@ function History() {
   )
 }
 
-/** Onglets Agent / Chat / Historique (le mode d'une conversation est fixé à sa création). */
-function ChatTabs({ conv }: { conv: Conversation | undefined }) {
-  const view = useChat((s) => s.view)
-  const mode = useChat((s) => s.mode)
-  const current = conv?.mode ?? mode
-  const pick = (target: 'agent' | 'chat') => {
-    if (conv && conv.turns.length > 0 && (conv.mode ?? 'chat') !== target) newConversation()
-    setMode(target)
-    showHistory(false)
-  }
-  return (
-    <div className="chat-tabs mode-toggle" role="tablist" aria-label="Mode">
-      <button role="tab" aria-selected={view !== 'history' && current === 'agent'} className={view !== 'history' && current === 'agent' ? 'active' : ''} onClick={() => pick('agent')} title="L’agent modifie le projet et lance des commandes">
-        Agent
-      </button>
-      <button role="tab" aria-selected={view !== 'history' && current === 'chat'} className={view !== 'history' && current === 'chat' ? 'active' : ''} onClick={() => pick('chat')} title="Questions et réponses">
-        Chat
-      </button>
-      <button role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'active' : ''} onClick={() => showHistory(view !== 'history')} title="Conversations précédentes">
-        Historique
-      </button>
-    </div>
-  )
-}
-
 /** État de la dernière réponse et délai avant le premier jeton. */
 function ChatStatusLine({ conv }: { conv: Conversation }) {
   const last = [...conv.turns].reverse().find((t): t is AssistantTurn => t.role === 'assistant')
@@ -592,7 +651,7 @@ function ChatStatusLine({ conv }: { conv: Conversation }) {
   const idx = conv.turns.indexOf(last)
   const user = conv.turns[idx - 1]
   const changed = user?.role === 'user' && user.checkpoint && !user.checkpoint.restored ? Object.keys(user.checkpoint.files).length : 0
-  const agent = conv.mode === 'agent'
+  const agent = !!last.steps
   const label =
     last.status === 'streaming'
       ? agent
@@ -661,15 +720,17 @@ export function ChatPanel() {
           {view === 'history' ? 'Historique' : conv ? conversationTitle(conv) : 'Assistant IA'}
         </span>
         <div className="sidebar-actions">
-          <button className="icon-button" title="Nouvelle conversation" onClick={newConversation}>
+          <button className={`icon-button${view === 'history' ? ' active' : ''}`} title="Historique des conversations" aria-label="Historique" onClick={() => showHistory(view !== 'history')}>
+            <Icon name="history" />
+          </button>
+          <button className="icon-button" title="Nouvelle conversation" aria-label="Nouvelle conversation" onClick={newConversation}>
             <Icon name="add" />
           </button>
-          <button className="icon-button" title="Fermer (Ctrl+L)" onClick={() => toggleChat(false)}>
+          <button className="icon-button" title="Fermer (Ctrl+L)" aria-label="Fermer" onClick={() => toggleChat(false)}>
             <Icon name="close" />
           </button>
         </div>
       </div>
-      <ChatTabs conv={conv} />
       {view !== 'history' && conv && <ChatStatusLine conv={conv} />}
       {view === 'history' ? (
         <History />
@@ -697,7 +758,7 @@ export function ChatPanel() {
               const userTurn = turns[i - 1]?.role === 'user' ? (turns[i - 1] as UserTurn) : undefined
               return (
                 <div key={t.id} className="agent-turn">
-                  <AgentAssistantTurn convId={conv!.id} turn={t} last={t === lastAssistant} />
+                  <AgentAssistantTurn convId={conv!.id} turn={t} last={t === lastAssistant} mode={userTurn?.mode} />
                   {userTurn && t.status !== 'streaming' && <ChangedFiles convId={conv!.id} turn={userTurn} />}
                   {divider}
                 </div>

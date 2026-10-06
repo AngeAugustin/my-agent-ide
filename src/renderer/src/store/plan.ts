@@ -8,9 +8,10 @@ export interface PlanFile {
 
 /** Conversation en Mode Agent affichée par la vue Plan : l'active, sinon la plus récente. */
 export function planConversation(state: { conversations: Conversation[]; activeId: string | null } = useChat.getState()): Conversation | undefined {
+  const hasAgentWork = (c: Conversation) => c.turns.some((t) => t.role === 'assistant' && !!t.steps)
   const active = state.conversations.find((c) => c.id === state.activeId)
-  if (active?.mode === 'agent') return active
-  return [...state.conversations].filter((c) => c.mode === 'agent').sort((a, b) => b.updatedAt - a.updatedAt)[0]
+  if (active && hasAgentWork(active)) return active
+  return [...state.conversations].filter(hasAgentWork).sort((a, b) => b.updatedAt - a.updatedAt)[0]
 }
 
 /** Fichiers modifiés par l'agent (points de restauration non annulés), avec leur état d'origine. */

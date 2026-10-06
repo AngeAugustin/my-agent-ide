@@ -10,6 +10,9 @@ import { relative } from '../lib/paths'
 import { openFile, useIde } from '../store/ide'
 import { Markdown } from './Markdown'
 import { Icon } from './Icon'
+import type { AssistantMode } from '@shared/modes'
+import { sendMessage, setMode } from '../store/chat'
+import { reportError } from '../store/ide'
 
 const STATUS_ICON: Record<AgentToolRun['status'], { icon: string; cls: string; title: string }> = {
   pending: { icon: 'circle-large-outline', cls: 'muted', title: 'En attente' },
@@ -121,7 +124,7 @@ function TodoCard({ todos }: { todos: Array<{ text: string; done: boolean }> }) 
   )
 }
 
-export function AgentAssistantTurn({ convId, turn, last }: { convId: string; turn: AssistantTurn; last: boolean }) {
+export function AgentAssistantTurn({ convId, turn, last, mode }: { convId: string; turn: AssistantTurn; last: boolean; mode?: AssistantMode }) {
   const streaming = turn.status === 'streaming'
   const [showReasoning, setShowReasoning] = useState<Record<string, boolean>>({})
   return (
@@ -166,6 +169,22 @@ export function AgentAssistantTurn({ convId, turn, last }: { convId: string; tur
         </div>
       )}
       {turn.status === 'stopped' && <div className="chat-notice">Agent arrêté.</div>}
+      {mode === 'plan' && last && turn.status === 'done' && (
+        <div className="plan-build">
+          <span className="muted small">Le plan vous convient ?</span>
+          <button
+            className="btn primary"
+            onClick={() => {
+              setMode('agent')
+              sendMessage('Exécute maintenant le plan ci-dessus, étape par étape, en tenant à jour la liste des sous-tâches. Vérifie ton travail à la fin.').catch((err: unknown) =>
+                reportError('Envoi impossible', err)
+              )
+            }}
+          >
+            <Icon name="play" /> Construire avec l’agent
+          </button>
+        </div>
+      )}
       {!streaming && (
         <div className="message-footer">
           <span className="muted small">

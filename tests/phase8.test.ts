@@ -250,3 +250,28 @@ describe('structure des fichiers et statistiques Git', () => {
     expect(parseNumstat('12\t3\tsrc/a.ts\n-\t-\timg.png\n')).toEqual({ 'src/a.ts': { added: 12, removed: 3 }, 'img.png': { added: 0, removed: 0 } })
   })
 })
+
+import { modePreamble, normalizeMode, READ_ONLY_TOOLS, usesTools } from '../src/shared/modes'
+
+describe('modes de l’assistant', () => {
+  it('normalise les anciennes valeurs', () => {
+    expect(normalizeMode('chat')).toBe('ask')
+    expect(normalizeMode('plan')).toBe('plan')
+    expect(normalizeMode('n’importe quoi')).toBe('agent')
+  })
+
+  it('ajoute la consigne de mode quand elle est utile', () => {
+    expect(modePreamble('plan', 'agent')).toContain('Mode Plan')
+    expect(modePreamble('debug', 'chat')).toContain('Mode Debug')
+    expect(modePreamble('agent', 'agent')).toBeNull()
+    expect(modePreamble('agent', 'chat')).toContain('Mode Agent')
+    expect(modePreamble('ask', 'agent')).toContain('Mode Ask')
+    expect(modePreamble('ask', 'chat')).toBeNull()
+    expect(usesTools('ask')).toBe(false)
+  })
+
+  it('n’autorise que la lecture en mode Plan', () => {
+    for (const t of ['edit_file', 'write_file', 'delete_file', 'run_command']) expect(READ_ONLY_TOOLS).not.toContain(t)
+    expect(READ_ONLY_TOOLS).toContain('read_file')
+  })
+})
