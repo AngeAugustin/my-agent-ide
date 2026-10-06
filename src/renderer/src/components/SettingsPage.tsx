@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
-import { updateSettings, useIde } from '../store/ide'
+import { ask, confirmUnsaved, updateSettings, useIde } from '../store/ide'
 import { AiSettingsSection } from './AiSettings'
 import { IndexSettings } from './IndexSettings'
 import { McpSettings } from './McpSettings'
@@ -60,6 +60,54 @@ const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'shortcuts', label: 'Raccourcis clavier' }
 ]
 
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1).replace('.', ',')} Go`
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1).replace('.', ',')} Mo`
+  return `${Math.max(1, Math.round(bytes / 1024))} Ko`
+}
+
+/** Emplacement et suppression des données de l'application (utile avant de la désinstaller). */
+function AppData() {
+  const [info, setInfo] = useState<{ path: string; size: number } | null>(null)
+  useEffect(() => {
+    void window.api.app.dataInfo().then(setInfo, () => setInfo(null))
+  }, [])
+  const platform = window.api.platform
+  const uninstallHint =
+    platform === 'win32'
+      ? 'Pour désinstaller : Paramètres de Windows › Applications › My Agent IDE › Désinstaller (le désinstallateur propose aussi d’effacer ces données).'
+      : platform === 'darwin'
+        ? 'Pour désinstaller : supprimez d’abord vos données ici, puis placez My Agent IDE (dossier Applications) dans la corbeille.'
+        : 'Pour désinstaller : supprimez d’abord vos données ici, puis le fichier AppImage, ou « sudo apt remove my-agent-ide » pour le paquet .deb.'
+  return (
+    <>
+      <h3>Données de l’application</h3>
+      <Row
+        title="Supprimer toutes mes données"
+        description={`Paramètres, clés API, conversations, index du code, documentations et caches${info ? ` (${formatSize(info.size)}, dans ${info.path})` : ''}. L’application se ferme ensuite. ${uninstallHint}`}
+      >
+        <button
+          className="btn danger"
+          onClick={async () => {
+            const choice = await ask(
+              'Supprimer toutes vos données ?',
+              'Paramètres, clés API, conversations, index du code et documentations seront définitivement effacés de cet ordinateur, puis My Agent IDE se fermera. Vos projets ne sont pas touchés.',
+              [
+                { label: 'Annuler', value: 'cancel' },
+                { label: 'Tout supprimer et fermer', value: 'wipe', danger: true }
+              ]
+            )
+            if (choice !== 'wipe' || !(await confirmUnsaved())) return
+            window.api.app.wipeDataAndQuit()
+          }}
+        >
+          Supprimer et fermer
+        </button>
+      </Row>
+    </>
+  )
+}
+
 export function SettingsPage() {
   const s = useIde((st) => st.settings)
   const section = useIde((st) => st.settingsSection) as Section
@@ -99,6 +147,7 @@ export function SettingsPage() {
                 <NumberInput value={s.autoSaveDelay} min={200} max={60000} onChange={(v) => set({ autoSaveDelay: v })} />
               </Row>
             )}
+            <AppData />
             <div className="settings-footer">
               <button className="btn" onClick={() => updateSettings(DEFAULT_SETTINGS)}>
                 Rétablir les paramètres par défaut

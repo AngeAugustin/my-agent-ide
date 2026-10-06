@@ -294,5 +294,9 @@ export interface IdeApi {
     confirmClose(): void
     setTitle(title: string): void
     toggleFullScreen(): void
+    /** Dossier des données de l'application et sa taille en octets. */
+    dataInfo(): Promise<{ path: string; size: number }>
+    /** Supprime toutes les données de l'application puis la ferme. */
+    wipeDataAndQuit(): void
   }
 }

@@ -88,6 +88,13 @@ Autres scripts :
 
 > `node-pty` utilise N-API : le binaire compilé par `npm install` fonctionne tel quel dans Electron (la reconstruction est désactivée dans `electron-builder.yml`).
 
+## Désinstallation
+
+Toutes les données de l’application (paramètres, clés API chiffrées, conversations, index du code, documentations, caches) sont dans un seul dossier : `%APPDATA%\My Agent IDE` (Windows), `~/Library/Application Support/My Agent IDE` (macOS), `~/.config/My Agent IDE` (Linux). Vos projets ne sont jamais touchés.
+
+- **Windows** : *Paramètres › Applications › My Agent IDE › Désinstaller*. Le désinstallateur supprime le programme et ses raccourcis, puis propose d’effacer aussi vos données (réponse par défaut : oui). Une mise à jour conserve les données ; en désinstallation silencieuse (`/S`), elles sont conservées sauf avec l’option `/SUPPRIMERDONNEES`.
+- **macOS / Linux** : *Paramètres › Général › Supprimer toutes mes données* efface le dossier et ferme l’application ; mettez ensuite l’application à la corbeille (macOS), supprimez le fichier AppImage, ou `sudo apt remove my-agent-ide` pour le paquet .deb.
+
 ## Installateurs et intégration continue
 
 - `.github/workflows/ci.yml` vérifie les types, lance les tests et compile à chaque push.

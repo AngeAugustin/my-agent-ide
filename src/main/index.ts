@@ -1,5 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { join } from 'node:path'
+import { spawn } from 'node:child_process'
+import { promises as fsp, rmSync } from 'node:fs'
 import {
   DEFAULT_SESSION,
   DEFAULT_SETTINGS,
@@ -22,6 +24,8 @@ import { killAllTerminals, registerTerminalHandlers } from './terminal'
 
 let mainWindow: BrowserWindow | null = null
 let closeConfirmed = false
+/** Demande de suppression de toutes les données de l'application à la fermeture. */
+let wipeDataOnQuit = false
 
 const settingsStore = new JsonStore<Settings>('settings', DEFAULT_SETTINGS)
 const sessionStore = new JsonStore<SessionState>('session', DEFAULT_SESSION)
@@ -116,6 +120,15 @@ function registerAppHandlers(): void {
     closeConfirmed = true
     mainWindow?.close()
   })
+  ipcMain.handle('app:dataInfo', async () => {
+    const dir = app.getPath('userData')
+    return { path: dir, size: await folderSize(dir) }
+  })
+  ipcMain.on('app:wipe-data-and-quit', () => {
+    wipeDataOnQuit = true
+    closeConfirmed = true
+    app.quit()
+  })
   ipcMain.on('app:set-title', (_e, title: string) => mainWindow?.setTitle(title))
   ipcMain.on('app:toggle-fullscreen', () => mainWindow?.setFullScreen(!mainWindow.isFullScreen()))
 }
@@ -140,6 +153,57 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+async function folderSize(dir: string): Promise<number> {
+  let total = 0
+  let entries
+  try {
+    entries = await fsp.readdir(dir, { withFileTypes: true })
+  } catch {
+    return 0
+  }
+  for (const e of entries) {
+    const p = join(dir, e.name)
+    try {
+      if (e.isDirectory()) total += await folderSize(p)
+      else if (e.isFile()) total += (await fsp.stat(p)).size
+    } catch {
+      // fichier inaccessible
+    }
+  }
+  return total
+}
+
+/**
+ * Efface le dossier de données (paramètres, clés, conversations, index, caches).
+ * Chromium réécrit quelques fichiers pendant sa propre fermeture : un petit processus détaché
+ * attend la fin de l'application pour terminer la suppression.
+ */
+function wipeUserData(): void {
+  const dir = app.getPath('userData')
+  if (process.platform === 'win32') {
+    // Plusieurs essais : les fichiers restent verrouillés jusqu'à la fin du processus.
+    spawn('cmd.exe', ['/d', '/c', `for /l %i in (1,1,15) do (ping -n 2 127.0.0.1 >nul & rmdir /s /q "${dir}" 2>nul & if not exist "${dir}" exit /b 0)`], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    }).unref()
+    return
+  }
+  try {
+    rmSync(dir, { recursive: true, force: true })
+  } catch {
+    // le reste sera supprimé après la fermeture
+  }
+  spawn('/bin/sh', ['-c', 'i=0; while kill -0 "$1" 2>/dev/null && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done; rm -rf "$2"', 'sh', String(process.pid), dir], {
+    detached: true,
+    stdio: 'ignore'
+  }).unref()
+}
+
+app.on('will-quit', () => {
+  if (wipeDataOnQuit) wipeUserData()
 })
 
 app.on('window-all-closed', () => {

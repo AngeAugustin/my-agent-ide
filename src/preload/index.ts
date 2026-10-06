@@ -156,7 +156,9 @@ const api: IdeApi = {
     onBeforeClose: (cb) => on<[]>('app:before-close', cb),
     confirmClose: () => ipcRenderer.send('app:confirm-close'),
     setTitle: (title) => ipcRenderer.send('app:set-title', title),
-    toggleFullScreen: () => ipcRenderer.send('app:toggle-fullscreen')
+    toggleFullScreen: () => ipcRenderer.send('app:toggle-fullscreen'),
+    dataInfo: () => ipcRenderer.invoke('app:dataInfo'),
+    wipeDataAndQuit: () => ipcRenderer.send('app:wipe-data-and-quit')
   }
 }
 
